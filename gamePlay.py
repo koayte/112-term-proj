@@ -22,12 +22,14 @@ def onAppStart(app):
     app.rangeLineOneY = 0
     app.rangeLineTwoX = 0
     app.rangeLineTwoY = 0
+    app.rangeCoords = [app.playerX, app.playerY, app.rangeLineOneX, app.rangeLineOneY, app.rangeLineTwoX, app.rangeLineTwoY]
 
 def redrawAll(app):
-    drawCircle(app.playerX, app.playerY, app.radius, fill='cyan')
-    drawLine(app.playerX, app.playerY, app.aimLineX, app.aimLineY)
-    drawLine(app.playerX, app.playerY, app.rangeLineOneX, app.rangeLineOneY)
-    drawLine(app.playerX, app.playerY, app.rangeLineTwoX, app.rangeLineTwoY)
+    drawPolygon(*app.rangeCoords, fill='blue', opacity=80)
+    drawCircle(app.playerX, app.playerY, app.radius, fill='black')
+    # drawLine(app.playerX, app.playerY, app.aimLineX, app.aimLineY)
+    # drawLine(app.playerX, app.playerY, app.rangeLineOneX, app.rangeLineOneY)
+    # drawLine(app.playerX, app.playerY, app.rangeLineTwoX, app.rangeLineTwoY)
 
 def onKeyPress(app, key):
     # shoot 
@@ -64,6 +66,7 @@ def onMouseMove(app, mouseX, mouseY):
     rangeLineTwoAngle = app.aimDirection - app.aimAngle/2
     app.rangeLineTwoX = app.playerX + rangeSideLen*math.cos(rangeLineTwoAngle)
     app.rangeLineTwoY = app.playerY - rangeSideLen*math.sin(rangeLineTwoAngle)
+    app.rangeCoords = [app.playerX, app.playerY, app.rangeLineOneX, app.rangeLineOneY, app.rangeLineTwoX, app.rangeLineTwoY]
 
 def distance(x1, y1, x2, y2):
     return ((x1-x2)**2+(y1-y2)**2)**0.5

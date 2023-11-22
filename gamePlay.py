@@ -2,11 +2,14 @@ from cmu_graphics import *
 import math
 
 class Player:
-    def __init__(self, x, y, radius, aimLength, aimAngle, aimDirection):
+    def __init__(self, x, y, radius, aimLength, aimAngle, aimDirection, charSpeed):
         # location
         self.playerX = x
         self.playerY = y 
         self.radius = radius
+
+        ### CHARACTER STATISTICS 
+        self.charSpeed = charSpeed
         
         # aim 
         self.aimLength = aimLength
@@ -23,7 +26,6 @@ class Player:
         self.ammoUnitLen = self.radius*2/self.maxAmmo
         self.ammoX = self.playerX - self.radius # left 
         self.ammoY = self.playerY - self.radius*1.5
-        self.maxShots = 3
 
         # health bar 
         self.maxHealth = 1500
@@ -70,10 +72,7 @@ def onAppStart(app):
 
     # player
     app.radius = app.gridSize/2 
-    app.player = Player(app.width/2, app.height/2, app.radius, 150, 0.4, 0)
-
-
-    # shoot 
+    app.player = Player(app.width/2, app.height/2, app.radius, aimLength=150, aimAngle=0.4, aimDirection=0, charSpeed=1.5)
 
 
 def redrawAll(app):
@@ -93,22 +92,32 @@ def onKeyPress(app, key):
 def onKeyHold(app, keys):
     # navigation
     if 'w' in keys and 's' not in keys:
-        app.player.playerY -= 1
-        app.player.ammoY -= 1
-        app.player.healthY -= 1
+        app.player.playerY -= app.player.charSpeed
+        boundaryCorrection(app)
     elif 'w' not in keys and 's' in keys:
-        app.player.playerY += 1
-        app.player.ammoY += 1
-        app.player.healthY += 1
+        app.player.playerY += app.player.charSpeed
+        boundaryCorrection(app)
     if 'a' in keys and 'd' not in keys:
-        app.player.playerX -= 1
-        app.player.ammoX -= 1
-        app.player.healthX -= 1
+        app.player.playerX -= app.player.charSpeed
+        boundaryCorrection(app)
     elif 'a' not in keys and 'd' in keys:
-        app.player.playerX += 1
-        app.player.ammoX += 1
-        app.player.healthX += 1
+        app.player.playerX += app.player.charSpeed
+        boundaryCorrection(app)
+    
+    app.player.ammoY = app.player.playerY - app.player.radius*1.5
+    app.player.healthY = app.player.playerY - app.player.radius*2.2
+    app.player.ammoX = app.player.healthX = app.player.playerX - app.player.radius
 
+
+def boundaryCorrection(app):
+    if app.player.playerX > app.width - app.player.radius:
+        app.player.playerX = app.width - app.player.radius
+    if app.player.playerX < app.player.radius: 
+        app.player.playerX = app.player.radius 
+    if app.player.playerY > app.height - app.player.radius:
+        app.player.playerY = app.height - app.player.radius
+    if app.player.playerY < app.player.radius: 
+        app.player.playerY = app.player.radius 
 
 def mouseToAim(app):
     # aim 

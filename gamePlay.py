@@ -54,7 +54,7 @@ class Player:
         for i in range(3):
             oneRectLen = self.maxAmmo/3*self.ammoUnitLen
             leftX = self.ammoX + i*oneRectLen
-            drawRect(leftX, self.ammoY, oneRectLen, 16, align='left', fill=None, border='grey')
+            drawRect(leftX, self.ammoY, oneRectLen, 16, align='left', fill=None, border='grey', borderWidth=0.7)
     
 
 
@@ -86,7 +86,9 @@ def redrawAll(app):
 def onKeyPress(app, key):
     # shoot 
     if key == 'space':
-        pass
+        app.player.currAmmo -= 500
+        if app.player.currAmmo <= 0:
+            app.player.currAmmo = 0.1
 
 def onKeyHold(app, keys):
     # navigation
@@ -132,6 +134,9 @@ def mouseToAim(app):
 
 def onStep(app):
     mouseToAim(app)
+    # ammo recharges 
+    if app.player.currAmmo < app.player.maxAmmo:
+        app.player.currAmmo += 2
 
 def onMouseMove(app, mouseX, mouseY):
     # aim 

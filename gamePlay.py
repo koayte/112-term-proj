@@ -26,6 +26,7 @@ class Player:
         self.ammoUnitLen = self.radius*2/self.maxAmmo
         self.ammoX = self.playerX - self.radius # left 
         self.ammoY = self.playerY - self.radius*1.5
+        self.maxShots = 3
 
         # health bar 
         self.maxHealth = 1500
@@ -53,12 +54,11 @@ class Player:
         # curr ammo bar 
         drawRect(self.ammoX, self.ammoY, self.currAmmo*self.ammoUnitLen, 16, align='left', fill='orange')
         # rectangles to show three shots 
-        for i in range(3):
+        for i in range(self.maxShots):
             oneRectLen = self.maxAmmo/3*self.ammoUnitLen
             leftX = self.ammoX + i*oneRectLen
             drawRect(leftX, self.ammoY, oneRectLen, 16, align='left', fill=None, border='grey', borderWidth=0.7)
     
-
 
 def onAppStart(app):
     # general 
@@ -68,7 +68,6 @@ def onAppStart(app):
     app.stepsPerSecond = 50
     app.mouseX = 0
     app.mouseY = 0
-    
 
     # player
     app.radius = app.gridSize/2 
@@ -84,8 +83,9 @@ def redrawAll(app):
     
 def onKeyPress(app, key):
     # shoot 
-    if key == 'space':
-        app.player.currAmmo -= 500
+    ammoPerShot = app.player.maxAmmo / app.player.maxShots
+    if key == 'space' and app.player.currAmmo >= ammoPerShot:
+        app.player.currAmmo -= ammoPerShot
         if app.player.currAmmo <= 0:
             app.player.currAmmo = 0.1
 

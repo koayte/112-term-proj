@@ -2,7 +2,7 @@ from cmu_graphics import *
 import math
 
 class Player:
-    def __init__(self, x, y, radius, aimLength, aimAngle, aimDirection, charSpeed):
+    def __init__(self, x, y, radius, aimLength, aimAngle, aimDirection, charSpeed, healSpeed):
         # location
         self.playerX = x
         self.playerY = y 
@@ -30,10 +30,11 @@ class Player:
 
         # health bar 
         self.maxHealth = 1500
-        self.currHealth = self.maxHealth 
+        self.currHealth = 1400
         self.healthUnitLen = self.radius*2/self.maxHealth
         self.healthX = self.playerX - self.radius # left  
         self.healthY = self.playerY - self.radius*2.2
+        self.healSpeed = healSpeed
 
 
     def drawPlayer(self, app):
@@ -42,11 +43,27 @@ class Player:
     def drawRange(self, app):
         drawPolygon(*self.rangeCoords, fill='yellow', opacity=80)
 
+    def healthBarColor(self):
+        red = (255,14,14)
+        yellow = (248,251,46) # at halfHealth
+        green = (20,255,0)
+        halfHealth = self.maxHealth / 2
+        if 0 <= self.currHealth <= halfHealth:
+            r = (yellow[0] - red[0]) / halfHealth * self.currHealth + red[0]
+            g = (yellow[1] - red[1]) / halfHealth * self.currHealth + red[1]
+            b = (yellow[2] - red[2]) / halfHealth * self.currHealth + red[2]
+        elif halfHealth < self.currHealth <= self.maxHealth:
+            r = (green[0] - yellow[0]) / halfHealth * (self.currHealth - halfHealth) + yellow[0]
+            g = (green[1] - yellow[1]) / halfHealth * (self.currHealth - halfHealth) + yellow[1]
+            b = (green[2] - yellow[2]) / halfHealth * (self.currHealth - halfHealth) + yellow[2]
+        return rgb(r,g,b)
+
     def drawHealthBar(self, app):
         # max health bar
         drawRect(self.healthX, self.healthY, self.radius*2, 16, align='left', fill='black') 
         # current health bar  DO THIS 
-        drawRect(self.healthX, self.healthY, self.currHealth*self.healthUnitLen, 16, align='left', fill='green')
+        healthColor = self.healthBarColor()
+        drawRect(self.healthX, self.healthY, self.currHealth*self.healthUnitLen, 16, align='left', fill=healthColor)
 
     def drawAmmoBar(self, app):
         # max ammo bar 
@@ -71,7 +88,7 @@ def onAppStart(app):
 
     # player
     app.radius = app.gridSize/2 
-    app.player = Player(app.width/2, app.height/2, app.radius, aimLength=150, aimAngle=0.4, aimDirection=0, charSpeed=1.5)
+    app.player = Player(app.width/2, app.height/2, app.radius, aimLength=150, aimAngle=0.4, aimDirection=0, charSpeed=1.5, healSpeed=0.7)
 
 
 def redrawAll(app):
@@ -146,6 +163,12 @@ def onStep(app):
     # ammo recharges 
     if app.player.currAmmo < app.player.maxAmmo:
         app.player.currAmmo += 2
+    
+    # health recharges 
+    if app.player.currHealth < app.player.maxHealth: 
+        app.player.currHealth += app.player.healSpeed
+        if app.player.currHealth > app.player.maxHealth:
+            app.player.currHealth = app.player.maxHealth
 
 def onMouseMove(app, mouseX, mouseY):
     # aim 

@@ -20,16 +20,18 @@ class Player:
         # ammo and shoot 
         self.maxAmmo = 1500 
         self.currAmmo = self.maxAmmo 
+        self.ammoUnitLen = self.radius*2/self.maxAmmo
         self.ammoX = self.playerX - self.radius # left 
         self.ammoY = self.playerY - self.radius*1.5
+        self.maxShots = 3
 
         # health bar 
         self.maxHealth = 1500
         self.currHealth = self.maxHealth 
+        self.healthUnitLen = self.radius*2/self.maxHealth
         self.healthX = self.playerX - self.radius # left  
         self.healthY = self.playerY - self.radius*2.2
 
-        # 
 
     def drawPlayer(self, app):
         drawCircle(self.playerX, self.playerY, self.radius, fill='black')
@@ -39,12 +41,20 @@ class Player:
 
     def drawHealthBar(self, app):
         # max health bar
-        drawRect(self.healthX, self.healthY, self.radius*2, 12, align='left', fill='black') 
+        drawRect(self.healthX, self.healthY, self.radius*2, 16, align='left', fill='black') 
         # current health bar  DO THIS 
-        # drawRect(self.healthX, self.healthY, self.currHealth)
+        drawRect(self.healthX, self.healthY, self.currHealth*self.healthUnitLen, 16, align='left', fill='green')
 
     def drawAmmoBar(self, app):
-        drawRect(self.ammoX, self.ammoY, self.radius*2, 12, align='left', fill='green')
+        # max ammo bar 
+        drawRect(self.ammoX, self.ammoY, self.radius*2, 16, align='left', fill='black')
+        # curr ammo bar 
+        drawRect(self.ammoX, self.ammoY, self.currAmmo*self.ammoUnitLen, 16, align='left', fill='orange')
+        # rectangles to show three shots 
+        for i in range(3):
+            oneRectLen = self.maxAmmo/3*self.ammoUnitLen
+            leftX = self.ammoX + i*oneRectLen
+            drawRect(leftX, self.ammoY, oneRectLen, 16, align='left', fill=None, border='grey')
     
 
 
@@ -52,7 +62,7 @@ def onAppStart(app):
     # general 
     app.width = 1300
     app.height = 720 
-    app.gridSize = 60
+    app.gridSize = 80
     app.stepsPerSecond = 50
     app.mouseX = 0
     app.mouseY = 0
@@ -60,15 +70,15 @@ def onAppStart(app):
 
     # player
     app.radius = app.gridSize/2 
-    app.player = Player(app.width/2, app.height/2, app.radius, 80, 0.4, 0)
+    app.player = Player(app.width/2, app.height/2, app.radius, 150, 0.4, 0)
 
 
     # shoot 
 
 
 def redrawAll(app):
-    app.player.drawPlayer(app)
     app.player.drawRange(app)
+    app.player.drawPlayer(app)
     app.player.drawHealthBar(app)
     app.player.drawAmmoBar(app)
     

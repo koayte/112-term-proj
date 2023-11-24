@@ -107,8 +107,8 @@ def onAppStart(app):
     app.radius = app.gridSize/2 
     app.player = Player(app.width/2, app.height/2, app.radius, aimLength=250, aimAngle=0.1, aimDirection=0, charSpeed=1.5, healSpeed=0.7)
 
-    # teammate player 
-    app.teammate = Player(app.width/2+200, app.height/2, app.radius, aimLength=300, aimAngle=0.1, aimDirection=0, charSpeed=1.5, healSpeed=0.7)
+    # enemy player 
+    app.enemy = Player(app.width/2+200, app.height/2, app.radius, aimLength=300, aimAngle=0.1, aimDirection=0, charSpeed=1.5, healSpeed=0.7)
 
 class Bullet:
     def __init__(self, player):
@@ -130,7 +130,8 @@ class Bullet:
         self.bulletDirection = player.aimDirection
         
         # which player
-        self.whichPlayer = player 
+        self.playerOrigin = player 
+        self.playerHit = None 
 
 
     
@@ -138,11 +139,11 @@ class Bullet:
         # rint(self.playerRangeOppLen)
         drawCircle(self.bulletX, self.bulletY, self.radius)
 
-
+############################### EVENTS 
 
 def redrawAll(app):
     drawEachPlayer(app, app.player)
-    drawEachPlayer(app, app.teammate)
+    drawEachPlayer(app, app.enemy)
     for i in range(len(app.player.bullets)):
         bullet = app.player.bullets[i]
         bullet.drawBullet()
@@ -160,21 +161,8 @@ def onKeyPress(app, key):
         shoot(app.player)
         
 
-def shoot(player):
-    ammoPerShot = player.maxAmmo / player.maxShots
-    if player.currAmmo >= ammoPerShot: # if there is enough ammo 
-        # ammo bar
-        player.currAmmo -= ammoPerShot
-        if player.currAmmo <= 0:
-            player.currAmmo = 0.1
-
-        # bullets 
-        bullet = Bullet(player)
-        player.bullets.append(bullet)
-
 def onKeyHold(app, keys):
     # navigation
-    
     app.player.spriteCounter = (app.player.spriteCounter + 1) % len(app.player.spriteList)
     if 'w' in keys and 's' not in keys:
         app.player.playerY -= app.player.charSpeed
@@ -206,7 +194,31 @@ def onKeyHold(app, keys):
     app.player.healthY = app.player.playerY - app.player.radius*2.2
     app.player.ammoX = app.player.healthX = app.player.playerX - app.player.radius
 
+def onStep(app):
+    mouseToAim(app)
+    # health recharges 
+    if app.player.currHealth < app.player.maxHealth: 
+        app.player.currHealth += app.player.healSpeed
+        if app.player.currHealth > app.player.maxHealth:
+            app.player.currHealth = app.player.maxHealth
+    
+    # ammo recharges 
+    if app.player.currAmmo < app.player.maxAmmo:
+        app.player.currAmmo += 6
+    
+    # bullets
+    bulletsMove(app.player)
+    bulletsHit(app.player, app.enemy)
 
+def onMouseMove(app, mouseX, mouseY):
+    # aim 
+    app.mouseX = mouseX
+    app.mouseY = mouseY
+
+def distance(x1, y1, x2, y2):
+    return ((x1-x2)**2+(y1-y2)**2)**0.5
+
+############################### MAP 
 
 def boundaryCorrection(app):
     if app.player.playerX > app.width - app.player.radius:
@@ -217,6 +229,9 @@ def boundaryCorrection(app):
         app.player.playerY = app.height - app.player.radius
     if app.player.playerY < app.player.radius: 
         app.player.playerY = app.player.radius 
+
+
+############################### AIM AND SHOOT  
 
 def mouseToAim(app):
     # aim 
@@ -240,36 +255,33 @@ def mouseToAim(app):
     app.player.rangeCoords = [app.player.playerX, app.player.playerY, app.player.rangeLineOneX, 
                               app.player.rangeLineOneY, app.player.rangeLineTwoX, app.player.rangeLineTwoY]
 
-def onStep(app):
-    mouseToAim(app)
-    # ammo recharges 
-    if app.player.currAmmo < app.player.maxAmmo:
-        app.player.currAmmo += 2
-    
-    # health recharges 
-    if app.player.currHealth < app.player.maxHealth: 
-        app.player.currHealth += app.player.healSpeed
-        if app.player.currHealth > app.player.maxHealth:
-            app.player.currHealth = app.player.maxHealth
-    
-    bulletsMove(app.player)
-    
 def bulletsMove(player):
     for i in range(len(player.bullets)):
         bullet = player.bullets[i]
         dx = 3*math.cos(bullet.bulletDirection)
         dy = 3*math.sin(bullet.bulletDirection)
         bullet.bulletX += dx
-        bullet.bulletY -= dy 
+        bullet.bulletY -= dy
 
-def onMouseMove(app, mouseX, mouseY):
-    # aim 
-    app.mouseX = mouseX
-    app.mouseY = mouseY
+def shoot(player):
+    ammoPerShot = player.maxAmmo / player.maxShots
+    if player.currAmmo >= ammoPerShot: # if there is enough ammo 
+        # ammo bar
+        player.currAmmo -= ammoPerShot
+        if player.currAmmo <= 0:
+            player.currAmmo = 0.1
 
+        # bullets 
+        bullet = Bullet(player)
+        player.bullets.append(bullet)
 
-def distance(x1, y1, x2, y2):
-    return ((x1-x2)**2+(y1-y2)**2)**0.5
+def bulletsHit(player, enemy):
+    for i in range(len(player.bullets)):
+        bullet = player.bullets[i]
+        if distance(bullet.bulletX, bullet.bulletY, enemy.playerX, enemy.playerY) <= (bullet.radius + enemy.radius):
+            bullet.playerHit = enemy 
+            enemy.currHealth -= 100
+            player.bullets.pop(i)
 
 def main():
     runApp()

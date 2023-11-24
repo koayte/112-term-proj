@@ -49,6 +49,9 @@ class Player:
         self.healthY = self.playerY - self.radius*2.2
         self.healSpeed = healSpeed
 
+        # bullets
+        self.bullets = []
+
 
     def drawPlayer(self, app):
         # drawCircle(self.playerX, self.playerY, self.radius, fill='black')
@@ -100,25 +103,69 @@ def onAppStart(app):
     app.mouseX = 0
     app.mouseY = 0
 
-    # player
+    # player (user)
     app.radius = app.gridSize/2 
-    app.player = Player(app.width/2, app.height/2, app.radius, aimLength=150, aimAngle=0.4, aimDirection=0, charSpeed=1.5, healSpeed=0.7)
+    app.player = Player(app.width/2, app.height/2, app.radius, aimLength=250, aimAngle=0.1, aimDirection=0, charSpeed=1.5, healSpeed=0.7)
+
+    # teammate player 
+    app.teammate = Player(app.width/2+200, app.height/2, app.radius, aimLength=300, aimAngle=0.1, aimDirection=0, charSpeed=1.5, healSpeed=0.7)
+
+class Bullet:
+    def __init__(self, player):
+        # calculate radius of bullet circle inscribed within triangle range: A = rs
+        self.playerRangeOppLen = distance(player.rangeLineOneX, player.rangeLineOneY, player.rangeLineTwoX, player.rangeLineTwoY)
+        self.playerRangeSideLen = distance(player.playerX, player.playerY, player.rangeLineOneX, player.rangeLineOneY)
+        self.playerRangeHeight = distance(player.playerX, player.playerY, player.aimLineX, player.aimLineY)
+        self.playerRangeArea = 0.5 * self.playerRangeOppLen * self.playerRangeHeight
+        self.playerRangeSemiPeri = 0.5 * (self.playerRangeSideLen * 2 + self.playerRangeOppLen)
+        self.radius = self.playerRangeArea / self.playerRangeSemiPeri
+
+        # bullet initial location (direction of aim)
+        distXFromPlayer = (player.radius + self.radius) * math.cos(player.aimDirection)
+        distYFromPlayer = (player.radius + self.radius) * math.sin(player.aimDirection)
+        self.bulletX = player.playerX + distXFromPlayer
+        self.bulletY = player.playerY - distYFromPlayer
+        
+        # which player
+        self.whichPlayer = player 
+    
+    def drawBullet(self):
+        # rint(self.playerRangeOppLen)
+        drawCircle(self.bulletX, self.bulletY, self.radius)
+
 
 
 def redrawAll(app):
-    app.player.drawRange(app)
-    app.player.drawPlayer(app)
-    app.player.drawHealthBar(app)
-    app.player.drawAmmoBar(app)
+    drawEachPlayer(app, app.player)
+    drawEachPlayer(app, app.teammate)
+    for i in range(len(app.player.bullets)):
+        bullet = app.player.bullets[i]
+        bullet.drawBullet()
     
+
+def drawEachPlayer(app, character):
+    character.drawRange(app)
+    character.drawPlayer(app)
+    character.drawHealthBar(app)
+    character.drawAmmoBar(app)
     
 def onKeyPress(app, key):
     # shoot 
-    ammoPerShot = app.player.maxAmmo / app.player.maxShots
-    if key == 'space' and app.player.currAmmo >= ammoPerShot:
-        app.player.currAmmo -= ammoPerShot
-        if app.player.currAmmo <= 0:
-            app.player.currAmmo = 0.1
+    if key == 'space':
+        shoot(app.player)
+        
+
+def shoot(player):
+    ammoPerShot = player.maxAmmo / player.maxShots
+    if player.currAmmo >= ammoPerShot: # if there is enough ammo 
+        # ammo bar
+        player.currAmmo -= ammoPerShot
+        if player.currAmmo <= 0:
+            player.currAmmo = 0.1
+
+        # bullets 
+        bullet = Bullet(player)
+        player.bullets.append(bullet)
 
 def onKeyHold(app, keys):
     # navigation
@@ -154,7 +201,7 @@ def onKeyHold(app, keys):
     app.player.healthY = app.player.playerY - app.player.radius*2.2
     app.player.ammoX = app.player.healthX = app.player.playerX - app.player.radius
 
-    
+
 
 def boundaryCorrection(app):
     if app.player.playerX > app.width - app.player.radius:

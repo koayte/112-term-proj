@@ -120,14 +120,19 @@ class Bullet:
         self.playerRangeSemiPeri = 0.5 * (self.playerRangeSideLen * 2 + self.playerRangeOppLen)
         self.radius = self.playerRangeArea / self.playerRangeSemiPeri
 
-        # bullet initial location (direction of aim)
+        # bullet location (direction of aim)
+        # initial location
         distXFromPlayer = (player.radius + self.radius) * math.cos(player.aimDirection)
         distYFromPlayer = (player.radius + self.radius) * math.sin(player.aimDirection)
         self.bulletX = player.playerX + distXFromPlayer
         self.bulletY = player.playerY - distYFromPlayer
+        # direction at that point in time 
+        self.bulletDirection = player.aimDirection
         
         # which player
         self.whichPlayer = player 
+
+
     
     def drawBullet(self):
         # rint(self.playerRangeOppLen)
@@ -246,6 +251,16 @@ def onStep(app):
         app.player.currHealth += app.player.healSpeed
         if app.player.currHealth > app.player.maxHealth:
             app.player.currHealth = app.player.maxHealth
+    
+    bulletsMove(app.player)
+    
+def bulletsMove(player):
+    for i in range(len(player.bullets)):
+        bullet = player.bullets[i]
+        dx = 3*math.cos(bullet.bulletDirection)
+        dy = 3*math.sin(bullet.bulletDirection)
+        bullet.bulletX += dx
+        bullet.bulletY -= dy 
 
 def onMouseMove(app, mouseX, mouseY):
     # aim 

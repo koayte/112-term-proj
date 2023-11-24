@@ -1,12 +1,25 @@
 from cmu_graphics import *
 import math
+from PIL import Image
 
 class Player:
     def __init__(self, x, y, radius, aimLength, aimAngle, aimDirection, charSpeed, healSpeed):
+        # gif 
+        self.charGif = Image.open('characters/jessie.gif')
+        self.spriteList = []
+        self.spriteDirection = 'right'
+        for frame in range(self.charGif.n_frames):
+            self.charGif.seek(frame)
+            fr = self.charGif.resize((self.charGif.size[0]//2, self.charGif.size[1]//2))
+            fr = CMUImage(fr)
+            self.spriteList.append(fr)
+        self.spriteCounter = 0
+        
         # location
         self.playerX = x
         self.playerY = y 
         self.radius = radius
+        self.moving = False 
 
         ### CHARACTER STATISTICS 
         self.charSpeed = charSpeed
@@ -38,7 +51,8 @@ class Player:
 
 
     def drawPlayer(self, app):
-        drawCircle(self.playerX, self.playerY, self.radius, fill='black')
+        # drawCircle(self.playerX, self.playerY, self.radius, fill='black')
+        drawImage(self.spriteList[self.spriteCounter], self.playerX, self.playerY, align='center')
 
     def drawRange(self, app):
         drawPolygon(*self.rangeCoords, fill='yellow', opacity=80)
@@ -82,7 +96,7 @@ def onAppStart(app):
     app.width = 1300
     app.height = 720 
     app.gridSize = 80
-    app.stepsPerSecond = 50
+    app.stepsPerSecond = 30
     app.mouseX = 0
     app.mouseY = 0
 
@@ -108,6 +122,8 @@ def onKeyPress(app, key):
 
 def onKeyHold(app, keys):
     # navigation
+    
+    app.player.spriteCounter = (app.player.spriteCounter + 1) % len(app.player.spriteList)
     if 'w' in keys and 's' not in keys:
         app.player.playerY -= app.player.charSpeed
         boundaryCorrection(app)
@@ -117,14 +133,28 @@ def onKeyHold(app, keys):
     if 'a' in keys and 'd' not in keys:
         app.player.playerX -= app.player.charSpeed
         boundaryCorrection(app)
+        app.player.spriteList.clear()
+        for frame in range(app.player.charGif.n_frames):
+            app.player.charGif.seek(frame)
+            fr = app.player.charGif.resize((app.player.charGif.size[0]//2, app.player.charGif.size[1]//2))
+            fr = fr.transpose(Image.FLIP_LEFT_RIGHT)
+            fr = CMUImage(fr)
+            app.player.spriteList.append(fr)
     elif 'a' not in keys and 'd' in keys:
         app.player.playerX += app.player.charSpeed
         boundaryCorrection(app)
-    
+        app.player.spriteList.clear()
+        for frame in range(app.player.charGif.n_frames):
+            app.player.charGif.seek(frame)
+            fr = app.player.charGif.resize((app.player.charGif.size[0]//2, app.player.charGif.size[1]//2))
+            fr = CMUImage(fr)
+            app.player.spriteList.append(fr)
+
     app.player.ammoY = app.player.playerY - app.player.radius*1.5
     app.player.healthY = app.player.playerY - app.player.radius*2.2
     app.player.ammoX = app.player.healthX = app.player.playerX - app.player.radius
 
+    
 
 def boundaryCorrection(app):
     if app.player.playerX > app.width - app.player.radius:

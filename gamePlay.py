@@ -50,6 +50,7 @@ class Player:
         self.totalDamage = 0.1
         self.damageNeeded = damageNeeded
         self.super = Super(app, self)
+        self.isSuperMode = False 
 
         # health bar 
         self.maxHealth = 1500
@@ -146,11 +147,18 @@ class Super:
             angle = 360 
         drawCircle(self.superX, self.superY, self.outerRadius, fill=rgb(18,24,50))
         drawArc(self.superX, self.superY, self.outerRadius*2-4, self.outerRadius*2-4, 0, angle, fill=rgb(240,209,106))
-        drawCircle(self.superX, self.superY, self.innerRadius, fill=rgb(61,98,150), border=rgb(18,24,50))
-        image = Image.open('images/skull.png')
-        image = image.resize((image.size[0]//8, image.size[1]//8))
-        image = CMUImage(image)
-        drawImage(image, self.superX, self.superY, align='center')
+        if self.activated == True:
+            drawCircle(self.superX, self.superY, self.innerRadius, fill=rgb(246,196,73))
+            image = Image.open('images/skull-activated.png')
+            image = image.resize((image.size[0]//8, image.size[1]//8))
+            image = CMUImage(image)
+            drawImage(image, self.superX, self.superY, align='center')
+        else:
+            drawCircle(self.superX, self.superY, self.innerRadius, fill=rgb(61,98,150), border=rgb(18,24,50))
+            image = Image.open('images/skull-unactivated.png')
+            image = image.resize((image.size[0]//8, image.size[1]//8))
+            image = CMUImage(image)
+            drawImage(image, self.superX, self.superY, align='center')
 
 
 

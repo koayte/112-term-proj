@@ -116,6 +116,8 @@ class Bullet:
         # initial location
         distXFromPlayer = (player.radius + self.radius) * math.cos(player.aimDirection)
         distYFromPlayer = (player.radius + self.radius) * math.sin(player.aimDirection)
+        self.originalBulletX = player.playerX 
+        self.originalBulletY = player.playerY 
         self.bulletX = player.playerX + distXFromPlayer
         self.bulletY = player.playerY - distYFromPlayer
         # direction at that point in time 
@@ -218,7 +220,6 @@ def onMousePress(app, mouseX, mouseY):
         
 def onKeyHold(app, keys):
     # navigation
-    app.player.spriteCounter = (app.player.spriteCounter + 1) % len(app.player.spriteList)
     if 'w' in keys and 's' not in keys:
         app.player.playerY -= app.player.charSpeed
         boundaryCorrection(app)
@@ -244,6 +245,8 @@ def onKeyHold(app, keys):
             fr = app.player.charGif.resize((app.player.charGif.size[0]//2, app.player.charGif.size[1]//2))
             fr = CMUImage(fr)
             app.player.spriteList.append(fr)
+    app.player.spriteCounter = (app.player.spriteCounter + 1) % len(app.player.spriteList)
+    
 
     app.player.ammoY = app.player.playerY - app.player.radius*1.5
     app.player.healthY = app.player.playerY - app.player.radius*2.2
@@ -258,6 +261,7 @@ def onStep(app):
     
     # bullets
     bulletsMove(app.player)
+    bulletOutOfRange(app.player)
     
 
 def onMouseMove(app, mouseX, mouseY):
@@ -351,7 +355,7 @@ def shoot(player):
 
         
 
-def getBulletIndex(player, enemy):
+def getBulletHitIndex(player, enemy):
     for i in range(len(player.bullets)):
         bullet = player.bullets[i]
         if distance(bullet.bulletX, bullet.bulletY, enemy.playerX, enemy.playerY) <= (bullet.radius + enemy.radius):
@@ -361,7 +365,7 @@ def getBulletIndex(player, enemy):
     return None 
 
 def bulletsHit(player, enemy):
-    i = getBulletIndex(player, enemy)
+    i = getBulletHitIndex(player, enemy)
     if i != None: 
         isNormalOrSuper = player.bullets[i].isNormalOrSuper
         player.totalDamage = (player.totalDamage + player.normalDamage) if isNormalOrSuper == 'normal' else (player.totalDamage + player.superDamage)
@@ -373,6 +377,20 @@ def bulletsHit(player, enemy):
 def superActivated(player):
     if player.totalDamage >= player.damageNeeded: # to activate Super 
         player.super.activated = True 
+
+# make bullets disappear when they reach the end of player's aim range 
+def getBulletOutOfRangeIndex(player):
+    playerAimLength = player.aimLength
+    for i in range(len(player.bullets)):
+        bullet = player.bullets[i]
+        if distance(bullet.bulletX, bullet.bulletY, bullet.originalBulletX, bullet.originalBulletY) >= playerAimLength: 
+            return i 
+    return None 
+
+def bulletOutOfRange(player):
+    i = getBulletOutOfRangeIndex(player)
+    if i != None: 
+        player.bullets.pop(i)
 
 def main():
     runApp()

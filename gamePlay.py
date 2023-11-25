@@ -213,7 +213,6 @@ def onAppStart(app):
     app.allChars = [app.player, app.enemy1, app.enemy2]
 
 def redrawAll(app):
-    # drawBoard(app)
     drawItemInMap(app)
     drawEachPlayer(app, app.player)
     drawEachPlayer(app, app.enemy1)
@@ -250,13 +249,10 @@ def onKeyHold(app, keys):
     # navigation
     if 'w' in keys and 's' not in keys:
         app.player.playerY -= app.player.charSpeed
-        boundaryCorrection(app)
     elif 'w' not in keys and 's' in keys:
         app.player.playerY += app.player.charSpeed
-        boundaryCorrection(app)
     if 'a' in keys and 'd' not in keys:
         app.player.playerX -= app.player.charSpeed * 2
-        boundaryCorrection(app)
         app.player.spriteList.clear()
         for frame in range(app.player.charGif.n_frames):
             app.player.charGif.seek(frame)
@@ -266,7 +262,6 @@ def onKeyHold(app, keys):
             app.player.spriteList.append(fr)
     elif 'a' not in keys and 'd' in keys:
         app.player.playerX += app.player.charSpeed * 2
-        boundaryCorrection(app)
         app.player.spriteList.clear()
         for frame in range(app.player.charGif.n_frames):
             app.player.charGif.seek(frame)
@@ -274,7 +269,6 @@ def onKeyHold(app, keys):
             fr = CMUImage(fr)
             app.player.spriteList.append(fr)
     app.player.spriteCounter = (app.player.spriteCounter + 1) % len(app.player.spriteList)
-
     # update location of ammo and health bars 
     app.player.ammoY = app.player.playerY - app.player.radius*1.5
     app.player.healthY = app.player.playerY - app.player.radius*2.2
@@ -290,7 +284,9 @@ def onStep(app):
     # bullets
     bulletsMove(app.player)
     bulletOutOfRange(app.player)
-    
+
+    boundaryCorrection(app)
+    collisionCheckWithMap(app)
 
 def onMouseMove(app, mouseX, mouseY):
     # aim 
@@ -351,8 +347,6 @@ def drawItemInMap(app):
     #         if item == 'b':
     #             mapItem = MapItem(app, item)
     #             mapItem.drawMapItem(app, row, col)
-
-
     for row in range(app.rows):
         for col in range(app.cols):
             item = app.board[row][col] 
@@ -367,24 +361,36 @@ def drawItemInMap(app):
                 color = 'white'
             drawRect(topLeftX, topLeftY, app.gridSize, app.gridSize, fill=color)
             
+def collisionCheckWithMap(app):
+    for player in app.allChars:
+        playerCurrRow, playerCurrCol = math.floor(player.playerY / app.gridSize), math.floor(player.playerX / app.gridSize)
+        bottomCellRow, bottomCellCol = playerCurrRow+1, playerCurrCol
+        topCellRow, topCellCol = playerCurrRow-1, playerCurrCol
+        leftCellRow, leftCellCol = playerCurrRow, playerCurrCol-1
+        rightCellRow, rightCellCol = playerCurrRow, playerCurrCol+1
+        if bottomCellRow < app.rows:
+            item = app.board[bottomCellRow][bottomCellCol]
+            topEdge = bottomCellRow*app.gridSize 
+            if (item == 'b' or item == 'w') and player.playerY > topEdge - player.radius:
+                player.playerY = topEdge - player.radius 
 
-def drawBoard(app):
-    for row in range(app.rows):
-        for col in range(app.cols):
-            drawCell(app, row, col)
-
-def drawCell(app, row, col):
-    cellLeft, cellTop = getCellLeftTop(app, row, col)
-    cellWidth = cellHeight = app.gridSize
-    drawRect(cellLeft, cellTop, cellWidth, cellHeight,
-             fill=None, border='black',
-             borderWidth=1)
-
-def getCellLeftTop(app, row, col):
-    cellWidth = cellHeight = app.gridSize
-    cellLeft = 0 + col * cellWidth
-    cellTop = 0 + row * cellHeight
-    return (cellLeft, cellTop)
+        if topCellRow >= 0: 
+            item = app.board[topCellRow][topCellCol]
+            bottomEdge = topCellRow*app.gridSize + app.gridSize
+            if (item == 'b' or item == 'w') and player.playerY < bottomEdge + player.radius:
+                player.playerY = bottomEdge + player.radius
+        
+        if leftCellCol >= 0: 
+            item = app.board[leftCellRow][leftCellCol]
+            rightEdge = leftCellCol*app.gridSize + app.gridSize 
+            if (item == 'b' or item == 'w') and player.playerX < rightEdge + player.radius:
+                player.playerX = rightEdge + player.radius 
+        
+        if rightCellCol < app.cols:
+            item = app.board[rightCellRow][rightCellCol]
+            leftEdge = rightCellCol*app.gridSize
+            if (item == 'b' or item == 'w') and player.playerX > leftEdge - player.radius:
+                player.playerX = leftEdge - player.radius
 
 ############################### HEALTH 
 def rechargeHealthAndAmmo(player):

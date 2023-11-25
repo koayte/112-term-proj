@@ -3,9 +3,10 @@ import math
 from PIL import Image
 
 class Player:
-    def __init__(self, x, y, radius, aimLength, aimAngle, aimDirection, charSpeed, healSpeed):
+    def __init__(self, app, x, y, radius, aimLength, aimAngle, aimDirection, charSpeed, 
+                 healSpeed, normalDamage, superDamage, damageNeeded):
         # gif 
-        self.charGif = Image.open('characters/jessie.gif')
+        self.charGif = Image.open('images/jessie.gif')
         self.spriteList = []
         self.spriteDirection = 'right'
         for frame in range(self.charGif.n_frames):
@@ -40,25 +41,32 @@ class Player:
         self.ammoX = self.playerX - self.radius # left 
         self.ammoY = self.playerY - self.radius*1.5
         self.maxShots = 3
+        # bullets
+        self.bullets = []
+
+        # damage caused 
+        self.normalDamage = normalDamage
+        self.superDamage = superDamage
+        self.totalDamage = 0.1
+        self.damageNeeded = damageNeeded
+        self.super = Super(app, self)
 
         # health bar 
         self.maxHealth = 1500
-        self.currHealth = 1400
+        self.currHealth = self.maxHealth
         self.healthUnitLen = self.radius*2/self.maxHealth
         self.healthX = self.playerX - self.radius # left  
         self.healthY = self.playerY - self.radius*2.2
         self.healSpeed = healSpeed
 
-        # bullets
-        self.bullets = []
-
-
+        
+        
     def drawPlayer(self, app):
         # drawCircle(self.playerX, self.playerY, self.radius, fill='black')
         drawImage(self.spriteList[self.spriteCounter], self.playerX, self.playerY, align='center')
 
     def drawRange(self, app):
-        drawPolygon(*self.rangeCoords, fill='yellow', opacity=80)
+        drawPolygon(*self.rangeCoords, fill=rgb(240,209,106), opacity=80)
 
     def healthBarColor(self):
         red = (255,14,14)
@@ -92,23 +100,6 @@ class Player:
             oneRectLen = self.maxAmmo/3*self.ammoUnitLen
             leftX = self.ammoX + i*oneRectLen
             drawRect(leftX, self.ammoY, oneRectLen, 16, align='left', fill=None, border='grey', borderWidth=0.7)
-    
-
-def onAppStart(app):
-    # general 
-    app.width = 1300
-    app.height = 720 
-    app.gridSize = 80
-    app.stepsPerSecond = 30
-    app.mouseX = 0
-    app.mouseY = 0
-
-    # player (user)
-    app.radius = app.gridSize/2 
-    app.player = Player(app.width/2, app.height/2, app.radius, aimLength=250, aimAngle=0.1, aimDirection=0, charSpeed=1.5, healSpeed=0.7)
-
-    # enemy player 
-    app.enemy = Player(app.width/2+200, app.height/2, app.radius, aimLength=300, aimAngle=0.1, aimDirection=0, charSpeed=1.5, healSpeed=0.7)
 
 class Bullet:
     def __init__(self, player):
@@ -139,11 +130,59 @@ class Bullet:
         # rint(self.playerRangeOppLen)
         drawCircle(self.bulletX, self.bulletY, self.radius)
 
+class Super:
+    def __init__(self, app, player):
+        self.innerRadius = 40
+        self.outerRadius = 50
+        self.superX = app.width-150
+        self.superY = app.height-150
+        self.activated = False 
+        self.damageNeeded = player.damageNeeded # to activate Super 
+        self.degreePerDamage = 360 / self.damageNeeded
+    
+    def drawSuper(self, player):
+        angle = self.degreePerDamage*player.totalDamage
+        if angle >= 360:
+            angle = 360 
+        drawCircle(self.superX, self.superY, self.outerRadius, fill=rgb(18,24,50))
+        drawArc(self.superX, self.superY, self.outerRadius*2-4, self.outerRadius*2-4, 0, angle, fill=rgb(240,209,106))
+        drawCircle(self.superX, self.superY, self.innerRadius, fill=rgb(61,98,150), border=rgb(18,24,50))
+        image = Image.open('images/skull.png')
+        image = image.resize((image.size[0]//8, image.size[1]//8))
+        image = CMUImage(image)
+        drawImage(image, self.superX, self.superY, align='center')
+
+
+
+
 ############################### EVENTS 
+
+def onAppStart(app):
+    # general 
+    app.width = 1300
+    app.height = 720 
+    app.gridSize = 80
+    app.stepsPerSecond = 30
+    app.mouseX = 0
+    app.mouseY = 0
+
+    # player (user)
+    app.radius = app.gridSize/2 
+    app.player = Player(app, app.width/2, app.height/2, app.radius, aimLength=250, aimAngle=0.1, aimDirection=0, charSpeed=1.5, healSpeed=0.7, normalDamage=1400, superDamage=400, damageNeeded=2000)
+
+    # enemy player 
+    app.enemy1 = Player(app, app.width/2+200, app.height/2, app.radius, aimLength=300, aimAngle=0.1, aimDirection=0, charSpeed=1.5, healSpeed=0.7, normalDamage=150, superDamage=400, damageNeeded=2000)
+    app.enemy2 = Player(app, app.width/2-200, app.height/2, app.radius, aimLength=300, aimAngle=0.1, aimDirection=0, charSpeed=1.5, healSpeed=0.7, normalDamage=150, superDamage=400, damageNeeded=2000)
+
+    app.allChars = [app.player, app.enemy1, app.enemy2]
 
 def redrawAll(app):
     drawEachPlayer(app, app.player)
-    drawEachPlayer(app, app.enemy)
+    drawEachPlayer(app, app.enemy1)
+    drawEachPlayer(app, app.enemy2)
+    app.player.super.drawSuper(app.player)
+
+
     for i in range(len(app.player.bullets)):
         bullet = app.player.bullets[i]
         bullet.drawBullet()
@@ -159,8 +198,10 @@ def onKeyPress(app, key):
     # shoot 
     if key == 'space':
         shoot(app.player)
-        
 
+def onMousePress(app, mouseX, mouseY):
+    shoot(app.player)
+        
 def onKeyHold(app, keys):
     # navigation
     app.player.spriteCounter = (app.player.spriteCounter + 1) % len(app.player.spriteList)
@@ -196,12 +237,14 @@ def onKeyHold(app, keys):
 
 def onStep(app):
     mouseToAim(app)
-    rechargeHealthAndAmmo(app.player)
-    rechargeHealthAndAmmo(app.enemy)
+    for char in app.allChars:
+        rechargeHealthAndAmmo(char)
+    for enemy in app.allChars[1:]:
+        bulletsHit(app.player, enemy)
     
     # bullets
     bulletsMove(app.player)
-    bulletsHit(app.player, app.enemy)
+    
 
 def onMouseMove(app, mouseX, mouseY):
     # aim 
@@ -214,14 +257,15 @@ def distance(x1, y1, x2, y2):
 ############################### MAP 
 
 def boundaryCorrection(app):
-    if app.player.playerX > app.width - app.player.radius:
-        app.player.playerX = app.width - app.player.radius
-    if app.player.playerX < app.player.radius: 
-        app.player.playerX = app.player.radius 
-    if app.player.playerY > app.height - app.player.radius:
-        app.player.playerY = app.height - app.player.radius
-    if app.player.playerY < app.player.radius: 
-        app.player.playerY = app.player.radius 
+    for char in app.allChars:
+        if char.playerX > app.width - char.radius:
+            char.playerX = app.width - char.radius
+        if char.playerX < char.radius: 
+            char.playerX = char.radius 
+        if char.playerY > app.height - char.radius:
+            char.playerY = app.height - char.radius
+        if char.playerY < char.radius: 
+            char.playerY = char.radius 
 
 ############################### HEALTH 
 def rechargeHealthAndAmmo(player):
@@ -277,12 +321,14 @@ def shoot(player):
         bullet = Bullet(player)
         player.bullets.append(bullet)
 
+        
+
 def getBulletIndex(player, enemy):
     for i in range(len(player.bullets)):
         bullet = player.bullets[i]
         if distance(bullet.bulletX, bullet.bulletY, enemy.playerX, enemy.playerY) <= (bullet.radius + enemy.radius):
             bullet.playerHit = enemy 
-            enemy.currHealth -= 100
+            enemy.currHealth -= player.normalDamage
             return i 
     return None 
 
@@ -290,6 +336,14 @@ def bulletsHit(player, enemy):
     i = getBulletIndex(player, enemy)
     if i != None: 
         player.bullets.pop(i)
+        player.totalDamage += player.normalDamage
+        superActivated(player)
+        if enemy.currHealth <= 0:
+            enemy.currHealth = 0.1
+
+def superActivated(player):
+    if player.totalDamage >= player.damageNeeded: # to activate Super 
+        player.super.activated = True 
 
 def main():
     runApp()

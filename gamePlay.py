@@ -63,7 +63,6 @@ class Player:
         
         
     def drawPlayer(self, app):
-        # drawCircle(self.playerX, self.playerY, self.radius, fill='black')
         drawImage(self.spriteList[self.spriteCounter], self.playerX, self.playerY, align='center')
 
     def drawRange(self, app):
@@ -164,8 +163,6 @@ class Super:
             drawImage(image, self.superX, self.superY, align='center')
 
 
-
-
 ############################### EVENTS 
 
 def onAppStart(app):
@@ -195,7 +192,11 @@ def redrawAll(app):
     drawEachPlayer(app, app.enemy1)
     drawEachPlayer(app, app.enemy2)
     app.player.super.drawSuper(app.player)
-
+    if app.player.isSuperMode: 
+        mode = 'SUPER'
+    else:
+        mode = 'NORMAL'
+    drawLabel(f'{mode}', app.width-150, app.height-80, size=16, font='orbitron')
 
     for i in range(len(app.player.bullets)):
         bullet = app.player.bullets[i]
@@ -319,6 +320,7 @@ def mouseToAim(app):
     app.player.rangeCoords = [app.player.playerX, app.player.playerY, app.player.rangeLineOneX, 
                               app.player.rangeLineOneY, app.player.rangeLineTwoX, app.player.rangeLineTwoY]
 
+# bullet animation 
 def bulletsMove(player):
     for i in range(len(player.bullets)):
         bullet = player.bullets[i]
@@ -352,9 +354,7 @@ def shoot(player):
             player.bullets.append(bullet)
     
         
-
-        
-
+# bullets hit enemy 
 def getBulletHitIndex(player, enemy):
     for i in range(len(player.bullets)):
         bullet = player.bullets[i]

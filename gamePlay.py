@@ -196,15 +196,8 @@ def onKeyHold(app, keys):
 
 def onStep(app):
     mouseToAim(app)
-    # health recharges 
-    if app.player.currHealth < app.player.maxHealth: 
-        app.player.currHealth += app.player.healSpeed
-        if app.player.currHealth > app.player.maxHealth:
-            app.player.currHealth = app.player.maxHealth
-    
-    # ammo recharges 
-    if app.player.currAmmo < app.player.maxAmmo:
-        app.player.currAmmo += 6
+    rechargeHealthAndAmmo(app.player)
+    rechargeHealthAndAmmo(app.enemy)
     
     # bullets
     bulletsMove(app.player)
@@ -230,6 +223,15 @@ def boundaryCorrection(app):
     if app.player.playerY < app.player.radius: 
         app.player.playerY = app.player.radius 
 
+############################### HEALTH 
+def rechargeHealthAndAmmo(player):
+    if player.currHealth < player.maxHealth: 
+        player.currHealth += player.healSpeed
+        if player.currHealth > player.maxHealth:
+            player.currHealth = player.maxHealth
+    
+    if player.currAmmo < player.maxAmmo:
+        player.currAmmo += 6
 
 ############################### AIM AND SHOOT  
 
@@ -275,13 +277,19 @@ def shoot(player):
         bullet = Bullet(player)
         player.bullets.append(bullet)
 
-def bulletsHit(player, enemy):
+def getBulletIndex(player, enemy):
     for i in range(len(player.bullets)):
         bullet = player.bullets[i]
         if distance(bullet.bulletX, bullet.bulletY, enemy.playerX, enemy.playerY) <= (bullet.radius + enemy.radius):
             bullet.playerHit = enemy 
             enemy.currHealth -= 100
-            player.bullets.pop(i)
+            return i 
+    return None 
+
+def bulletsHit(player, enemy):
+    i = getBulletIndex(player, enemy)
+    if i != None: 
+        player.bullets.pop(i)
 
 def main():
     runApp()

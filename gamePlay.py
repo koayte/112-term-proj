@@ -111,7 +111,7 @@ class Bullet:
         self.playerRangeSemiPeri = 0.5 * (self.playerRangeSideLen * 2 + self.playerRangeOppLen)
         self.radius = self.playerRangeArea / self.playerRangeSemiPeri
 
-        # bullet location (direction of aim)
+        ### bullet location (direction of aim)
         # initial location
         distXFromPlayer = (player.radius + self.radius) * math.cos(player.aimDirection)
         distYFromPlayer = (player.radius + self.radius) * math.sin(player.aimDirection)
@@ -130,7 +130,6 @@ class Bullet:
         self.isNormalOrSuper = "normal"
     
     def drawBullet(self):
-        # rint(self.playerRangeOppLen)
         drawCircle(self.bulletX, self.bulletY, self.radius)
 
 class Super:
@@ -162,14 +161,40 @@ class Super:
             image = CMUImage(image)
             drawImage(image, self.superX, self.superY, align='center')
 
+class MapItem:
+    def __init__(self, app, item):
+        if item == 'p': # plant
+            self.image = Image.open('images/plant.png')
+        elif item == 'b': # block
+            self.image = Image.open('images/block.png')
+        elif item == 'w': 
+            pass
+        sizeScaleFactor = self.image.size[0] // app.gridSize
+        self.image = self.image.resize((self.image.size[0]//sizeScaleFactor, self.image.size[1]//sizeScaleFactor))
+
+    def drawMapItem(self, app, x, y):
+        image = CMUImage(self.image)
+        topLeftX, topLeftY = app.gridSize*y, app.gridSize*x
+        drawImage(image, topLeftX, topLeftY, align='left-top')
 
 ############################### EVENTS 
 
 def onAppStart(app):
-    # general 
-    app.width = 1300
+    # map 
+    app.width = 1280
     app.height = 720 
     app.gridSize = 80
+    app.rows = app.height // app.gridSize # 9
+    app.cols = app.width // app.gridSize # 16
+    app.board = [ [0]*app.cols for row in range(app.rows) ]
+    app.mapItemsDict = {
+        'p': [],
+        'b': [],
+        'w': []
+    }
+    fillInBoard(app)
+
+    # general 
     app.stepsPerSecond = 30
     app.mouseX = 0
     app.mouseY = 0
@@ -188,6 +213,8 @@ def onAppStart(app):
     app.allChars = [app.player, app.enemy1, app.enemy2]
 
 def redrawAll(app):
+    # drawBoard(app)
+    drawItemInMap(app)
     drawEachPlayer(app, app.player)
     drawEachPlayer(app, app.enemy1)
     drawEachPlayer(app, app.enemy2)
@@ -228,7 +255,7 @@ def onKeyHold(app, keys):
         app.player.playerY += app.player.charSpeed
         boundaryCorrection(app)
     if 'a' in keys and 'd' not in keys:
-        app.player.playerX -= app.player.charSpeed
+        app.player.playerX -= app.player.charSpeed * 2
         boundaryCorrection(app)
         app.player.spriteList.clear()
         for frame in range(app.player.charGif.n_frames):
@@ -238,7 +265,7 @@ def onKeyHold(app, keys):
             fr = CMUImage(fr)
             app.player.spriteList.append(fr)
     elif 'a' not in keys and 'd' in keys:
-        app.player.playerX += app.player.charSpeed
+        app.player.playerX += app.player.charSpeed * 2
         boundaryCorrection(app)
         app.player.spriteList.clear()
         for frame in range(app.player.charGif.n_frames):
@@ -247,8 +274,8 @@ def onKeyHold(app, keys):
             fr = CMUImage(fr)
             app.player.spriteList.append(fr)
     app.player.spriteCounter = (app.player.spriteCounter + 1) % len(app.player.spriteList)
-    
 
+    # update location of ammo and health bars 
     app.player.ammoY = app.player.playerY - app.player.radius*1.5
     app.player.healthY = app.player.playerY - app.player.radius*2.2
     app.player.ammoX = app.player.healthX = app.player.playerX - app.player.radius
@@ -285,6 +312,79 @@ def boundaryCorrection(app):
             char.playerY = app.height - char.radius
         if char.playerY < char.radius: 
             char.playerY = char.radius 
+
+def fillInBoard(app):
+    # coordinates with plants/blocks/water for only the top half of grid
+    mapTopHalfItemsDict = {
+        'p': [(1,0), (1,1), (1,2),
+              (2,0), (2,1), (2,2),
+              (3,0), (3,1), (3,2),
+              (4,0), (4,1),
+              (5,0), (5,1),
+              (2,7), (2,8), (2,9), (2,10), (2,11),
+              (3,7)], # green Plants
+        'b': [(2,4), (2,5),
+              (3,8), (3,9), (3,10), (3,11),
+              (2,15)], # brown Blocks 
+        'w': [(2,12), (2,13), (2,14)] # blue Water 
+    } 
+
+    # since grid is symmetric, need to add coordinates of items for bottom half of map
+    # by taking (8-x, 15-y) for each coordinate tuple 
+    for key in mapTopHalfItemsDict:
+        listOfCoords = mapTopHalfItemsDict[key]
+        for (x,y) in listOfCoords:
+            bottomCoords = (8-x, 15-y)
+            app.mapItemsDict[key].append((x,y))
+            app.mapItemsDict[key].append(bottomCoords)
+    
+    # now update app.board 
+    for key in app.mapItemsDict:
+        listOfCoords = app.mapItemsDict[key]
+        for (x,y) in listOfCoords:
+            app.board[x][y] = key
+
+def drawItemInMap(app):
+    # for row in range(app.rows):
+    #     for col in range(app.cols):
+    #         item = app.board[row][col] 
+    #         if item == 'b':
+    #             mapItem = MapItem(app, item)
+    #             mapItem.drawMapItem(app, row, col)
+
+
+    for row in range(app.rows):
+        for col in range(app.cols):
+            item = app.board[row][col] 
+            topLeftX, topLeftY = app.gridSize*col, app.gridSize*row
+            if item == 'p':
+                color = rgb(166,216,133)
+            elif item == 'b':
+                color = rgb(241,201,156)
+            elif item == 'w':
+                color = rgb(161,200,250)
+            else:
+                color = 'white'
+            drawRect(topLeftX, topLeftY, app.gridSize, app.gridSize, fill=color)
+            
+
+def drawBoard(app):
+    for row in range(app.rows):
+        for col in range(app.cols):
+            drawCell(app, row, col)
+
+def drawCell(app, row, col):
+    cellLeft, cellTop = getCellLeftTop(app, row, col)
+    cellWidth = cellHeight = app.gridSize
+    drawRect(cellLeft, cellTop, cellWidth, cellHeight,
+             fill=None, border='black',
+             borderWidth=1)
+
+def getCellLeftTop(app, row, col):
+    cellWidth = cellHeight = app.gridSize
+    cellLeft = 0 + col * cellWidth
+    cellTop = 0 + row * cellHeight
+    return (cellLeft, cellTop)
 
 ############################### HEALTH 
 def rechargeHealthAndAmmo(player):
@@ -324,8 +424,8 @@ def mouseToAim(app):
 def bulletsMove(player):
     for i in range(len(player.bullets)):
         bullet = player.bullets[i]
-        dx = 3*math.cos(bullet.bulletDirection)
-        dy = 3*math.sin(bullet.bulletDirection)
+        dx = 4*math.cos(bullet.bulletDirection)
+        dy = 4*math.sin(bullet.bulletDirection)
         bullet.bulletX += dx
         bullet.bulletY -= dy
 
@@ -393,6 +493,7 @@ def bulletOutOfRange(player):
         player.bullets.pop(i)
 
 def main():
+    # map_redrawAll()
     runApp()
 
 main()

@@ -125,7 +125,8 @@ class Bullet:
         self.playerOrigin = player 
         self.playerHit = None 
 
-
+        # is normal or super 
+        self.isNormalOrSuper = "normal"
     
     def drawBullet(self):
         # rint(self.playerRangeOppLen)
@@ -176,11 +177,14 @@ def onAppStart(app):
 
     # player (user)
     app.radius = app.gridSize/2 
-    app.player = Player(app, app.width/2, app.height/2, app.radius, aimLength=250, aimAngle=0.1, aimDirection=0, charSpeed=1.5, healSpeed=0.7, normalDamage=1400, superDamage=400, damageNeeded=2000)
+    app.player = Player(app, app.width/2, app.height/2, app.radius, aimLength=250, aimAngle=0.1, aimDirection=0, 
+                        charSpeed=1.5, healSpeed=0.7, normalDamage=150, superDamage=400, damageNeeded=2000)
 
     # enemy player 
-    app.enemy1 = Player(app, app.width/2+200, app.height/2, app.radius, aimLength=300, aimAngle=0.1, aimDirection=0, charSpeed=1.5, healSpeed=0.7, normalDamage=150, superDamage=400, damageNeeded=2000)
-    app.enemy2 = Player(app, app.width/2-200, app.height/2, app.radius, aimLength=300, aimAngle=0.1, aimDirection=0, charSpeed=1.5, healSpeed=0.7, normalDamage=150, superDamage=400, damageNeeded=2000)
+    app.enemy1 = Player(app, app.width/2+200, app.height/2, app.radius, aimLength=300, aimAngle=0.1, aimDirection=0, 
+                        charSpeed=1.5, healSpeed=0.7, normalDamage=150, superDamage=400, damageNeeded=2000)
+    app.enemy2 = Player(app, app.width/2-200, app.height/2, app.radius, aimLength=300, aimAngle=0.1, aimDirection=0, 
+                        charSpeed=1.5, healSpeed=0.7, normalDamage=150, superDamage=400, damageNeeded=2000)
 
     app.allChars = [app.player, app.enemy1, app.enemy2]
 
@@ -206,6 +210,8 @@ def onKeyPress(app, key):
     # shoot 
     if key == 'space':
         shoot(app.player)
+    if key == 'f' and app.player.super.activated == True:
+        app.player.isSuperMode = not app.player.isSuperMode
 
 def onMousePress(app, mouseX, mouseY):
     shoot(app.player)
@@ -318,16 +324,30 @@ def bulletsMove(player):
         bullet.bulletY -= dy
 
 def shoot(player):
-    ammoPerShot = player.maxAmmo / player.maxShots
-    if player.currAmmo >= ammoPerShot: # if there is enough ammo 
-        # ammo bar
-        player.currAmmo -= ammoPerShot
-        if player.currAmmo <= 0:
-            player.currAmmo = 0.1
+    # super mode 
+    if player.isSuperMode and player.super.activated:
+        superBullet = Bullet(player)
+        superBullet.radius *= 2
+        superBullet.isNormalOrSuper = "super"
+        player.bullets.append(superBullet)
+        player.super.activated = False 
+        player.isSuperMode = False 
+        player.totalDamage = 0.1
+   
+    # normal mode 
+    else:
+        ammoPerShot = player.maxAmmo / player.maxShots
+        if player.currAmmo >= ammoPerShot: # if there is enough ammo 
+            # ammo bar
+            player.currAmmo -= ammoPerShot
+            if player.currAmmo <= 0:
+                player.currAmmo = 0.1
 
-        # bullets 
-        bullet = Bullet(player)
-        player.bullets.append(bullet)
+            # bullets 
+            bullet = Bullet(player)
+            player.bullets.append(bullet)
+    
+        
 
         
 
@@ -336,15 +356,16 @@ def getBulletIndex(player, enemy):
         bullet = player.bullets[i]
         if distance(bullet.bulletX, bullet.bulletY, enemy.playerX, enemy.playerY) <= (bullet.radius + enemy.radius):
             bullet.playerHit = enemy 
-            enemy.currHealth -= player.normalDamage
+            enemy.currHealth = (enemy.currHealth - player.normalDamage) if bullet.isNormalOrSuper == 'normal' else (enemy.currHealth - player.superDamage)
             return i 
     return None 
 
 def bulletsHit(player, enemy):
     i = getBulletIndex(player, enemy)
     if i != None: 
-        player.bullets.pop(i)
-        player.totalDamage += player.normalDamage
+        isNormalOrSuper = player.bullets[i].isNormalOrSuper
+        player.totalDamage = (player.totalDamage + player.normalDamage) if isNormalOrSuper == 'normal' else (player.totalDamage + player.superDamage)
+        player.bullets.pop(i) # make bullet disappear 
         superActivated(player)
         if enemy.currHealth <= 0:
             enemy.currHealth = 0.1

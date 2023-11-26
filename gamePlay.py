@@ -167,7 +167,7 @@ class MapItem:
         if item == 'p': # plant
             self.image = Image.open('images/plant.png')
             self.blocked = False 
-            sizeScaleFactor = self.image.size[0] // (app.gridSize+5)
+            sizeScaleFactor = self.image.size[0] // app.gridSize
         elif item == 'b': # block
             self.image = Image.open('images/block.png')
             self.blocked = True

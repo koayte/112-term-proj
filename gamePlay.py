@@ -26,7 +26,8 @@ class Player:
         self.charSpeed = charSpeed
         
         # aim 
-        self.aimLength = aimLength
+        self.maxAimLength = aimLength 
+        self.aimLength = aimLength # current aim length 
         self.aimAngle = aimAngle 
         self.aimDirection = aimDirection 
         self.aimLineX = self.aimLength + self.playerX
@@ -113,8 +114,8 @@ class Bullet:
 
         ### bullet location (direction of aim)
         # initial location
-        distXFromPlayer = (player.radius + self.radius) * math.cos(player.aimDirection)
-        distYFromPlayer = (player.radius + self.radius) * math.sin(player.aimDirection)
+        distXFromPlayer = player.radius * math.cos(player.aimDirection)
+        distYFromPlayer = player.radius * math.sin(player.aimDirection)
         self.originalBulletX = player.playerX 
         self.originalBulletY = player.playerY 
         self.bulletX = player.playerX + distXFromPlayer
@@ -415,6 +416,9 @@ def mouseToAim(app):
     app.player.aimLineX = app.player.playerX + app.player.aimLength*math.cos(app.player.aimDirection)
     app.player.aimLineY = app.player.playerY - app.player.aimLength*math.sin(app.player.aimDirection)
 
+    # collision check
+    bulletHitsObstacle(app, app.player)
+
     # triangular range 
     rangeSideLen = app.player.aimLength / math.cos(app.player.aimAngle / 2)
     rangeLineOneAngle = app.player.aimAngle/2 + app.player.aimDirection 
@@ -458,7 +462,53 @@ def shoot(player):
             # bullets 
             bullet = Bullet(player)
             player.bullets.append(bullet)
-    
+
+# bullets collision check 
+def getBulletHitObstacleIndex(app, player):
+    for i in range(len(player.bullets)):
+        bullet = player.bullets[i]
+        bulletCurrRow, bulletCurrCol = math.floor(bullet.bulletY / app.gridSize), math.floor(bullet.bulletX / app.gridSize)
+        bottomCellRow, bottomCellCol = bulletCurrRow+1, bulletCurrCol
+        topCellRow, topCellCol = bulletCurrRow-1, bulletCurrCol
+        leftCellRow, leftCellCol = bulletCurrRow, bulletCurrCol-1
+        rightCellRow, rightCellCol = bulletCurrRow, bulletCurrCol+1
+
+        # check if bullet is spawned inside block/water
+        item = app.board[bulletCurrRow][bulletCurrCol]
+        if item == 'b' or item == 'w':
+            return i 
+        
+        # check if bullet hits block/water 
+        if bottomCellRow < app.rows:
+            item = app.board[bottomCellRow][bottomCellCol]
+            topEdge = bottomCellRow*app.gridSize 
+            if (item == 'b' or item == 'w') and bullet.bulletY > topEdge - bullet.radius:
+                return i
+
+        if topCellRow >= 0: 
+            item = app.board[topCellRow][topCellCol]
+            bottomEdge = topCellRow*app.gridSize + app.gridSize
+            if (item == 'b' or item == 'w') and bullet.bulletY < bottomEdge + bullet.radius:
+                return i
+        
+        if leftCellCol >= 0: 
+            item = app.board[leftCellRow][leftCellCol]
+            rightEdge = leftCellCol*app.gridSize + app.gridSize 
+            if (item == 'b' or item == 'w') and bullet.bulletX < rightEdge + bullet.radius:
+                return i
+        
+        if rightCellCol < app.cols:
+            item = app.board[rightCellRow][rightCellCol]
+            leftEdge = rightCellCol*app.gridSize
+            if (item == 'b' or item == 'w') and bullet.bulletX > leftEdge - bullet.radius:
+                return i
+    return None 
+
+def bulletHitsObstacle(app, player):
+    i = getBulletHitObstacleIndex(app, player)
+    if i != None:
+        player.bullets.pop(i)
+
         
 # bullets hit enemy 
 def getBulletHitIndex(player, enemy):

@@ -166,17 +166,22 @@ class MapItem:
     def __init__(self, app, item):
         if item == 'p': # plant
             self.image = Image.open('images/plant.png')
+            self.blocked = False 
+            sizeScaleFactor = self.image.size[0] // (app.gridSize+5)
         elif item == 'b': # block
             self.image = Image.open('images/block.png')
+            self.blocked = True
+            sizeScaleFactor = self.image.size[0] // app.gridSize
         elif item == 'w': 
-            pass
-        sizeScaleFactor = self.image.size[0] // app.gridSize
+            self.image = Image.open('images/water.png')
+            self.blocked = True
+            sizeScaleFactor = self.image.size[0] // app.gridSize
         self.image = self.image.resize((self.image.size[0]//sizeScaleFactor, self.image.size[1]//sizeScaleFactor))
+        self.image = CMUImage(self.image)
 
     def drawMapItem(self, app, x, y):
-        image = CMUImage(self.image)
         topLeftX, topLeftY = app.gridSize*y, app.gridSize*x
-        drawImage(image, topLeftX, topLeftY, align='left-top')
+        drawImage(self.image, topLeftX, topLeftY, align='left-top')
 
 ############################### EVENTS 
 
@@ -214,6 +219,7 @@ def onAppStart(app):
     app.allChars = [app.player, app.enemy1, app.enemy2]
 
 def redrawAll(app):
+    drawMapBackground(app)
     drawItemInMap(app)
     drawEachPlayer(app, app.player)
     drawEachPlayer(app, app.enemy1)
@@ -339,28 +345,24 @@ def fillInBoard(app):
     for key in app.mapItemsDict:
         listOfCoords = app.mapItemsDict[key]
         for (x,y) in listOfCoords:
-            app.board[x][y] = key
+            app.board[x][y] = MapItem(app, key)
+
+def drawMapBackground(app):
+    for row in range(app.rows):
+        for col in range(app.cols):
+            if row % 2 == col % 2:
+                color = rgb(219,156,116) # dark brown
+            else:
+                color = rgb(236,169,124) # light brown
+            drawRect(col*app.gridSize, row*app.gridSize, app.gridSize, app.gridSize,
+                         align='left-top', fill=color)
 
 def drawItemInMap(app):
-    # for row in range(app.rows):
-    #     for col in range(app.cols):
-    #         item = app.board[row][col] 
-    #         if item == 'b':
-    #             mapItem = MapItem(app, item)
-    #             mapItem.drawMapItem(app, row, col)
     for row in range(app.rows):
         for col in range(app.cols):
             item = app.board[row][col] 
-            topLeftX, topLeftY = app.gridSize*col, app.gridSize*row
-            if item == 'p':
-                color = rgb(166,216,133)
-            elif item == 'b':
-                color = rgb(241,201,156)
-            elif item == 'w':
-                color = rgb(161,200,250)
-            else:
-                color = 'white'
-            drawRect(topLeftX, topLeftY, app.gridSize, app.gridSize, fill=color)
+            if isinstance(item, MapItem):
+                item.drawMapItem(app, row, col)  
             
 def collisionCheckWithMap(app):
     for player in app.allChars:
@@ -372,25 +374,25 @@ def collisionCheckWithMap(app):
         if bottomCellRow < app.rows:
             item = app.board[bottomCellRow][bottomCellCol]
             topEdge = bottomCellRow*app.gridSize 
-            if (item == 'b' or item == 'w') and player.playerY > topEdge - player.radius:
+            if isinstance(item, MapItem) and item.blocked and player.playerY > topEdge - player.radius:
                 player.playerY = topEdge - player.radius 
 
         if topCellRow >= 0: 
             item = app.board[topCellRow][topCellCol]
             bottomEdge = topCellRow*app.gridSize + app.gridSize
-            if (item == 'b' or item == 'w') and player.playerY < bottomEdge + player.radius:
+            if isinstance(item, MapItem) and item.blocked and player.playerY < bottomEdge + player.radius:
                 player.playerY = bottomEdge + player.radius
         
         if leftCellCol >= 0: 
             item = app.board[leftCellRow][leftCellCol]
             rightEdge = leftCellCol*app.gridSize + app.gridSize 
-            if (item == 'b' or item == 'w') and player.playerX < rightEdge + player.radius:
+            if isinstance(item, MapItem) and item.blocked and player.playerX < rightEdge + player.radius:
                 player.playerX = rightEdge + player.radius 
         
         if rightCellCol < app.cols:
             item = app.board[rightCellRow][rightCellCol]
             leftEdge = rightCellCol*app.gridSize
-            if (item == 'b' or item == 'w') and player.playerX > leftEdge - player.radius:
+            if isinstance(item, MapItem) and item.blocked and player.playerX > leftEdge - player.radius:
                 player.playerX = leftEdge - player.radius
 
 ############################### HEALTH 
@@ -475,32 +477,32 @@ def getBulletHitObstacleIndex(app, player):
 
         # check if bullet is spawned inside block/water
         item = app.board[bulletCurrRow][bulletCurrCol]
-        if item == 'b' or item == 'w':
+        if isinstance(item, MapItem) and item.blocked:
             return i 
         
         # check if bullet hits block/water 
         if bottomCellRow < app.rows:
             item = app.board[bottomCellRow][bottomCellCol]
             topEdge = bottomCellRow*app.gridSize 
-            if (item == 'b' or item == 'w') and bullet.bulletY > topEdge - bullet.radius:
+            if isinstance(item, MapItem) and item.blocked and bullet.bulletY > topEdge - bullet.radius:
                 return i
 
         if topCellRow >= 0: 
             item = app.board[topCellRow][topCellCol]
             bottomEdge = topCellRow*app.gridSize + app.gridSize
-            if (item == 'b' or item == 'w') and bullet.bulletY < bottomEdge + bullet.radius:
+            if isinstance(item, MapItem) and item.blocked and bullet.bulletY < bottomEdge + bullet.radius:
                 return i
         
         if leftCellCol >= 0: 
             item = app.board[leftCellRow][leftCellCol]
             rightEdge = leftCellCol*app.gridSize + app.gridSize 
-            if (item == 'b' or item == 'w') and bullet.bulletX < rightEdge + bullet.radius:
+            if isinstance(item, MapItem) and item.blocked and bullet.bulletX < rightEdge + bullet.radius:
                 return i
         
         if rightCellCol < app.cols:
             item = app.board[rightCellRow][rightCellCol]
             leftEdge = rightCellCol*app.gridSize
-            if (item == 'b' or item == 'w') and bullet.bulletX > leftEdge - bullet.radius:
+            if isinstance(item, MapItem) and item.blocked and bullet.bulletX > leftEdge - bullet.radius:
                 return i
     return None 
 

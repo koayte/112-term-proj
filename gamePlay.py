@@ -164,6 +164,7 @@ class Super:
 
 class MapItem:
     def __init__(self, app, item):
+        self.item = item
         if item == 'p': # plant
             self.image = Image.open('images/plant.png')
             self.blocked = False 
@@ -294,6 +295,9 @@ def onStep(app):
 
     boundaryCorrection(app)
     collisionCheckWithMap(app)
+
+    # bots 
+    # enemyMoves(app, app.enemy1)
 
 def onMouseMove(app, mouseX, mouseY):
     # aim 
@@ -550,8 +554,125 @@ def bulletOutOfRange(player):
     if i != None: 
         player.bullets.pop(i)
 
+############################### BOTS
+
+def enemyMoves(app, enemy):
+    # MOVES 
+    threshold = enemy.maxHealth // 2
+    enemyRow = enemy.playerY // app.gridSize
+    enemyCol = enemy.playerX // app.gridSize 
+    playerRow = app.player.playerY // app.gridSize 
+    playerCol = app.player.playerX // app.gridSize 
+    if enemy.currHealth > threshold:
+        # move towards player  
+        coordsList = dijkstra(app, enemyRow, enemyCol, playerRow, playerCol)
+        currCoords = (enemyRow, enemyCol)
+        for (nextRow, nextCol) in coordsList: 
+            dx = nextRow - currCoords[0]
+            dy = nextCol - currCoords[1]
+            enemy.playerX += (dx * app.gridSize)
+            enemy.playerY += (dy * app.gridSize)
+            currCoords = (nextRow, nextCol)
+    else:
+        # move towards nearest bush to regenerate 
+        pass
+
+    # SHOTS 
+    # aim direction towards enemy 
+    # if within range, shoot 
+
+############################### DIJKSTRA
+
+def dijkstra(app, startCellRow, startCellCol, endCellRow, endCellCol):
+    # unvisited set: all nodes except for obstacles 
+    # dictionary of distance of node from start (infinity for everything, 0 for start)
+    # dictionary of each node to its parent (empty at first. key is node, value is parent)
+    # while len(unvisited) > 0:
+        # choose unvisited with minimum distance (will be start initially)
+        # if node == end:
+            # while loop? while parent is not startCell?
+                # get parent (value)
+                # add into list? 
+                # return list?
+        # remove node from unvisited list
+        # loop through all 8 directions dx,dy
+            # add to startCellRow/Col
+            # if valid (within boundaries, NOT mapitem, unvisited)
+                # get distance from start to current node (from dictionary)
+                # get distance (cost) from current node to neighbor 
+                # add to get D
+                # if D < dictionary.get(D):
+                    # update distance dictionary 
+                    # update parents dictionary 
+
+    unvisited = initializeUnvisited(app)
+    distFrStartDict = initializeDistDict(unvisited, startCellRow, startCellCol)
+    parentDict = dict()
+    for coords in unvisited:
+        parentDict[coords] = None 
+    
+    while len(unvisited) > 0:
+        currCell = min(unvisited, key=distFrStartDict.get) # might replace with a priority queue?
+        if currCell == (endCellRow, endCellCol):
+            path = []
+            path.append((endCellRow, endCellCol))
+            parentOfCurr = parentDict[currCell]
+            path.append(parentOfCurr)
+            while parentOfCurr != (startCellRow, startCellCol):
+                parentOfCurr = parentDict[parentOfCurr]
+                path.append(parentOfCurr)
+            path.pop() # remove (startCellRow, startCellCol)
+            return path[::-1]
+        unvisited.remove(currCell)
+        for dx in (-1,0,1):
+            for dy in (-1,0,1):
+                nextCellRow, nextCellCol = currCell[0] + dx, currCell[1] + dy
+                if validNextCell(app, unvisited, nextCellRow, nextCellCol):
+                    distFrStartToCurr = distFrStartDict[currCell]
+                    # cost is sqrt(2) for 4 diagonals, 1 for other directions 
+                    costToNextCell = math.sqrt(2) if (dx != 0 and dy != 0) else 1 
+                    distFrStartToNext = distFrStartToCurr + costToNextCell
+                    if distFrStartToNext < distFrStartDict[(nextCellRow, nextCellCol)]:
+                        distFrStartDict[(nextCellRow, nextCellCol)] = distFrStartToNext
+                        parentDict[(nextCellRow, nextCellCol)] = currCell
+
+
+def validNextCell(app, unvisited, nextCellRow, nextCellCol):
+    # out of boundaries 
+    if nextCellRow < 0 or nextCellRow >= app.rows or nextCellCol < 0 or nextCellCol >= app.cols:
+        return False 
+    
+    # is an obstacle (water or brick)
+    cell = app.board[nextCellRow][nextCellCol]
+    if isinstance(cell, MapItem) and (cell.item == 'w' or cell.item == 'b'): 
+        return False 
+
+    # has already been visited 
+    if (nextCellRow, nextCellCol) not in unvisited:
+        return False
+    
+    return True 
+
+def initializeUnvisited(app):
+    unvisited = set()
+    for row in range(app.rows):
+        for col in range(app.cols):
+            if not isinstance(app.board[row][col], MapItem): # empty space 
+                unvisited.add((row, col))
+            else:
+                if app.board[row][col].item == 'p':
+                    unvisited.add((row, col)) # bushes are not obstacles 
+    return unvisited
+
+def initializeDistDict(unvisited, startCellRow, startCellCol):
+    distFrStartDict = dict()
+    for coords in unvisited:
+        distFrStartDict[coords] = 10000 # some large enough number 
+    distFrStartDict[(startCellRow, startCellCol)] = 0
+    return distFrStartDict
+
 def main():
-    # map_redrawAll()
     runApp()
+    
 
 main()

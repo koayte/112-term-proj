@@ -7,14 +7,19 @@ class Player:
                  healSpeed, normalDamage, superDamage, damageNeeded):
         # gif 
         self.charGif = Image.open('images/jessie.gif')
-        self.spriteList = []
+        self.spriteListRight = []
         self.spriteDirection = 'right'
+        self.spriteListLeft = []
         for frame in range(self.charGif.n_frames):
             self.charGif.seek(frame)
             fr = self.charGif.resize((self.charGif.size[0]//2, self.charGif.size[1]//2))
-            fr = CMUImage(fr)
-            self.spriteList.append(fr)
-        self.spriteCounter = 0
+            right = CMUImage(fr)
+            left = fr.transpose(Image.FLIP_LEFT_RIGHT)
+            left = CMUImage(left)
+            self.spriteListRight.append(right)
+            self.spriteListLeft.append(left)
+        self.spriteCounterRight = 0
+        self.spriteCounterLeft = 0
         
         # location
         self.playerX = x
@@ -64,7 +69,11 @@ class Player:
         
         
     def drawPlayer(self, app):
-        drawImage(self.spriteList[self.spriteCounter], self.playerX, self.playerY, align='center')
+        if self.spriteDirection == 'right':
+            drawImage(self.spriteListRight[self.spriteCounterRight], self.playerX, self.playerY, align='center')
+        else:
+            drawImage(self.spriteListLeft[self.spriteCounterLeft], self.playerX, self.playerY, align='center')
+
 
     def drawRange(self, app):
         drawPolygon(*self.rangeCoords, fill=rgb(240,209,106), opacity=80)
@@ -209,13 +218,13 @@ def onAppStart(app):
     # player (user)
     app.radius = app.gridSize/2 
     app.player = Player(app, app.width/2, app.height/2, app.radius, aimLength=250, aimAngle=0.1, aimDirection=0, 
-                        charSpeed=1.5, healSpeed=0.7, normalDamage=150, superDamage=400, damageNeeded=2000)
+                        charSpeed=3, healSpeed=0.7, normalDamage=150, superDamage=400, damageNeeded=2000)
 
     # enemy player 
     app.enemy1 = Player(app, app.width/2+200, app.height/2, app.radius, aimLength=300, aimAngle=0.1, aimDirection=0, 
-                        charSpeed=1.5, healSpeed=0.7, normalDamage=150, superDamage=400, damageNeeded=2000)
+                        charSpeed=3, healSpeed=0.7, normalDamage=150, superDamage=400, damageNeeded=2000)
     app.enemy2 = Player(app, app.width/2-200, app.height/2, app.radius, aimLength=300, aimAngle=0.1, aimDirection=0, 
-                        charSpeed=1.5, healSpeed=0.7, normalDamage=150, superDamage=400, damageNeeded=2000)
+                        charSpeed=3, healSpeed=0.7, normalDamage=150, superDamage=400, damageNeeded=2000)
 
     app.allChars = [app.player, app.enemy1, app.enemy2]
 
@@ -260,23 +269,16 @@ def onKeyHold(app, keys):
     elif 'w' not in keys and 's' in keys:
         app.player.playerY += app.player.charSpeed
     if 'a' in keys and 'd' not in keys:
-        app.player.playerX -= app.player.charSpeed * 2
-        app.player.spriteList.clear()
-        for frame in range(app.player.charGif.n_frames):
-            app.player.charGif.seek(frame)
-            fr = app.player.charGif.resize((app.player.charGif.size[0]//2, app.player.charGif.size[1]//2))
-            fr = fr.transpose(Image.FLIP_LEFT_RIGHT)
-            fr = CMUImage(fr)
-            app.player.spriteList.append(fr)
+        app.player.playerX -= app.player.charSpeed 
+        app.player.spriteDirection = 'left'
     elif 'a' not in keys and 'd' in keys:
-        app.player.playerX += app.player.charSpeed * 2
-        app.player.spriteList.clear()
-        for frame in range(app.player.charGif.n_frames):
-            app.player.charGif.seek(frame)
-            fr = app.player.charGif.resize((app.player.charGif.size[0]//2, app.player.charGif.size[1]//2))
-            fr = CMUImage(fr)
-            app.player.spriteList.append(fr)
-    app.player.spriteCounter = (app.player.spriteCounter + 1) % len(app.player.spriteList)
+        app.player.playerX += app.player.charSpeed 
+        app.player.spriteDirection = 'right'
+
+    if app.player.spriteDirection == 'right':
+        app.player.spriteCounterRight = (app.player.spriteCounterRight + 1) % len(app.player.spriteListRight)
+    else:
+        app.player.spriteCounterLeft = (app.player.spriteCounterLeft + 1) % len(app.player.spriteListLeft)
     # update location of ammo and health bars 
     app.player.ammoY = app.player.playerY - app.player.radius*1.5
     app.player.healthY = app.player.playerY - app.player.radius*2.2

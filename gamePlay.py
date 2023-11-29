@@ -2,6 +2,7 @@ from cmu_graphics import *
 import math
 from PIL import Image
 from map import *
+import random
 
 class Player:
     def __init__(self, app, x, y, radius, aimLength, aimAngle, aimDirection, charSpeed, 
@@ -130,7 +131,7 @@ class Bullet:
         self.originalBulletY = player.playerY 
         self.bulletX = player.playerX + distXFromPlayer
         self.bulletY = player.playerY - distYFromPlayer
-        # direction at that point in time 
+        # direction captured at point in time of bullet instance creation (when player shoots)
         self.bulletDirection = player.aimDirection
         
         # which player
@@ -140,8 +141,9 @@ class Bullet:
         # is normal or super 
         self.isNormalOrSuper = "normal"
     
-    def drawBullet(self):
-        drawCircle(self.bulletX, self.bulletY, self.radius)
+    def drawBullet(self, app):
+        color = rgb(248,251,46) if self.playerOrigin == app.player else rgb(255,14,14)
+        drawCircle(self.bulletX, self.bulletY, self.radius, fill=color)
 
 class Super:
     def __init__(self, app, player):
@@ -224,12 +226,13 @@ def onAppStart(app):
                         charSpeed=3, healSpeed=0.7, normalDamage=150, superDamage=400, damageNeeded=2000)
 
     # enemy player 
-    app.enemy1 = Player(app, app.width/2+200, app.height/2, app.radius, aimLength=300, aimAngle=0.1, aimDirection=0, 
+    app.enemy1 = Player(app, app.width/2+200, app.height/2, app.radius, aimLength=250, aimAngle=0.1, aimDirection=0, 
                         charSpeed=2.5, healSpeed=0.7, normalDamage=150, superDamage=400, damageNeeded=2000)
     # app.enemy2 = Player(app, app.width/2-200, app.height/2, app.radius, aimLength=300, aimAngle=0.1, aimDirection=0, 
     #                     charSpeed=2, healSpeed=0.7, normalDamage=150, superDamage=400, damageNeeded=2000)
 
     app.allChars = [app.player, app.enemy1]
+    app.enemies = [app.enemy1]
 
 
 def redrawAll(app):
@@ -244,13 +247,16 @@ def redrawAll(app):
         mode = 'NORMAL'
     drawLabel(f'{mode}', app.width-150, app.height-80, size=16, font='orbitron')
 
-    for i in range(len(app.player.bullets)):
-        bullet = app.player.bullets[i]
-        bullet.drawBullet()
+    for i in range(len(app.allChars)):
+        char = app.allChars[i]
+        for j in range(len(char.bullets)):
+            bullet = char.bullets[j]
+            bullet.drawBullet(app)
     
 
 def drawEachPlayer(app, character):
-    character.drawRange(app)
+    if character not in app.enemies:
+        character.drawRange(app)
     character.drawPlayer(app)
     character.drawHealthBar(app)
     character.drawAmmoBar(app)
@@ -294,13 +300,13 @@ def onStep(app):
     mouseToAim(app)
     for char in app.allChars:
         rechargeHealthAndAmmo(char)
-    for enemy in app.allChars[1:]:
-        bulletsHit(app.player, enemy)
+        bulletsMove(char)
+        bulletOutOfRange(char)
+        bulletHitsObstacle(app, char)
     
-    # bullets
-    bulletsMove(app.player)
-    bulletOutOfRange(app.player)
-
+    bulletsHit(app.player, app.enemy1)
+    bulletsHit(app.enemy1, app.player)
+ 
     boundaryCorrection(app)
     collisionCheckWithMap(app)
 
@@ -308,6 +314,10 @@ def onStep(app):
     coordsList = whereEnemyMoves(app, app.enemy1)
     if coordsList != []:
         enemyMoves(app, app.enemy1, coordsList)
+    calculateAimDirection(app.enemy1, app.enemy1.playerX, app.enemy1.playerY, 
+                            app.player.playerX, app.player.playerY)
+    if app.onStepCounter % random.randrange(20,90) == 0: # make bots' shot timings arbitrary
+        shoot(app.enemy1)
     
 
 def onMouseMove(app, mouseX, mouseY):
@@ -342,8 +352,7 @@ def fillInBoard(app):
               (2,7), (2,8), (2,9), (2,10), (2,11),
               (3,7)], # green Plants
         'b': [(2,4), (2,5),
-              (3,8), (3,9), (3,10), (3,11),
-              (2,15)], # brown Blocks 
+              (3,8), (3,9), (3,10), (3,11)], # brown Blocks 
         'w': [(2,12), (2,13), (2,14)] # blue Water 
     } 
 
@@ -422,30 +431,34 @@ def rechargeHealthAndAmmo(player):
 
 ############################### AIM AND SHOOT  
 
-def mouseToAim(app):
-    # aim 
-    straightDist = distance(app.player.playerX, app.player.playerY, app.mouseX, app.mouseY)
-    fraction = (app.mouseX - app.player.playerX) / straightDist if straightDist != 0 else 1
-    if app.mouseY > app.player.playerY: # mouseY is below player 
-        app.player.aimDirection = -1*math.acos(fraction)
-    else: # mouseY is above player 
-        app.player.aimDirection = math.acos(fraction)
-    app.player.aimLineX = app.player.playerX + app.player.aimLength*math.cos(app.player.aimDirection)
-    app.player.aimLineY = app.player.playerY - app.player.aimLength*math.sin(app.player.aimDirection)
-
-    # collision check
-    bulletHitsObstacle(app, app.player)
+def calculateAimDirection(player, playerX, playerY, targetX, targetY):
+    # set aim direction (angle)
+    straightDist = distance(playerX, playerY, targetX, targetY)
+    adjOverHypFraction = (targetX - playerX) / straightDist if straightDist != 0 else 1
+    if targetY > playerY: # target is below player
+        player.aimDirection = -1*math.acos(adjOverHypFraction)
+    else: 
+        player.aimDirection = math.acos(adjOverHypFraction)
+    
+    # straight aim line angle 
+    player.aimLineX = player.playerX + player.aimLength*math.cos(player.aimDirection)
+    player.aimLineY = player.playerY - player.aimLength*math.sin(player.aimDirection)
 
     # triangular range 
-    rangeSideLen = app.player.aimLength / math.cos(app.player.aimAngle / 2)
-    rangeLineOneAngle = app.player.aimAngle/2 + app.player.aimDirection 
-    app.player.rangeLineOneX = app.player.playerX + rangeSideLen*math.cos(rangeLineOneAngle)
-    app.player.rangeLineOneY = app.player.playerY - rangeSideLen*math.sin(rangeLineOneAngle)
-    rangeLineTwoAngle = app.player.aimDirection - app.player.aimAngle/2
-    app.player.rangeLineTwoX = app.player.playerX + rangeSideLen*math.cos(rangeLineTwoAngle)
-    app.player.rangeLineTwoY = app.player.playerY - rangeSideLen*math.sin(rangeLineTwoAngle)
-    app.player.rangeCoords = [app.player.playerX, app.player.playerY, app.player.rangeLineOneX, 
-                              app.player.rangeLineOneY, app.player.rangeLineTwoX, app.player.rangeLineTwoY]
+    rangeSideLen = player.aimLength / math.cos(player.aimAngle / 2)
+    rangeLineOneAngle = player.aimAngle/2 + player.aimDirection 
+    player.rangeLineOneX = player.playerX + rangeSideLen*math.cos(rangeLineOneAngle)
+    player.rangeLineOneY = player.playerY - rangeSideLen*math.sin(rangeLineOneAngle)
+    rangeLineTwoAngle = player.aimDirection - player.aimAngle/2
+    player.rangeLineTwoX = player.playerX + rangeSideLen*math.cos(rangeLineTwoAngle)
+    player.rangeLineTwoY = player.playerY - rangeSideLen*math.sin(rangeLineTwoAngle)
+    player.rangeCoords = [player.playerX, player.playerY, player.rangeLineOneX, 
+                              player.rangeLineOneY, player.rangeLineTwoX, player.rangeLineTwoY]
+
+
+def mouseToAim(app):
+    calculateAimDirection(app.player, app.player.playerX, app.player.playerY, app.mouseX, app.mouseY)
+
 
 # bullet animation 
 def bulletsMove(player):
@@ -581,14 +594,10 @@ def whereEnemyMoves(app, enemy):
             coordsList = dijkstra(app, enemyRow, enemyCol, playerRow, playerCol)
         else: 
             coordsList = []
-    else:
-        # move towards nearest bush to regenerate 
-        coordsList = dijkstra(app, enemyRow, enemyCol, 1, 2)
+    # else:
+    #     # move towards nearest bush to regenerate 
+    # coordsList = dijkstra(app, enemyRow, enemyCol, 2, 2)
     return coordsList
-
-    # SHOTS 
-    # aim direction towards enemy 
-    # if within range, shoot 
 
 def enemyMoves(app, enemy, coordsList):
     # navigation (moving to coords specified by Dijkstra's)
@@ -654,6 +663,8 @@ def dijkstra(app, startCellRow, startCellCol, endCellRow, endCellCol):
             while parentOfCurr != (startCellRow, startCellCol):
                 parentOfCurr = parentDict[parentOfCurr]
                 path.append(parentOfCurr)
+                print(path)
+                print(parentOfCurr)
             path.pop() # remove (startCellRow, startCellCol)
             return path[::-1]
         unvisited.remove(currCell)

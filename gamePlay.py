@@ -278,10 +278,12 @@ def onKeyHold(app, keys):
         app.player.playerX += app.player.charSpeed 
         app.player.spriteDirection = 'right'
 
+    # sprite walking animation
     if app.player.spriteDirection == 'right':
         app.player.spriteCounterRight = (app.player.spriteCounterRight + 1) % len(app.player.spriteListRight)
     else:
         app.player.spriteCounterLeft = (app.player.spriteCounterLeft + 1) % len(app.player.spriteListLeft)
+    
     # update location of ammo and health bars 
     app.player.ammoY = app.player.playerY - app.player.radius*1.5
     app.player.healthY = app.player.playerY - app.player.radius*2.2
@@ -589,12 +591,14 @@ def whereEnemyMoves(app, enemy):
     # if within range, shoot 
 
 def enemyMoves(app, enemy, coordsList):
+    # navigation (moving to coords specified by Dijkstra's)
     enemyRow = math.floor(enemy.playerY / app.gridSize)
     enemyCol = math.floor(enemy.playerX / app.gridSize)
     nextRow, nextCol = coordsList[0][0], coordsList[0][1]
     if (enemyRow, enemyCol) != (nextRow, nextCol):
         drow = nextRow - enemyRow 
         dcol = nextCol - enemyCol 
+        enemy.spriteDirection = 'right' if dcol > 0 else 'left'
         enemy.playerX += (enemy.charSpeed * dcol) 
         enemy.playerY += (enemy.charSpeed * drow)
         # update location of ammo and health bars 
@@ -603,6 +607,12 @@ def enemyMoves(app, enemy, coordsList):
         enemy.ammoX = enemy.healthX = enemy.playerX - enemy.radius
     else: 
         coordsList.pop(0) # go to next (nextRow, nextCol)
+    
+    # enemy animation 
+    if enemy.spriteDirection == 'right':
+        enemy.spriteCounterRight = (enemy.spriteCounterRight + 1) % len(enemy.spriteListRight)
+    else:
+        enemy.spriteCounterLeft = (enemy.spriteCounterLeft + 1) % len(enemy.spriteListLeft)
 
 ############################### DIJKSTRA
 

@@ -7,3 +7,7 @@ Citations:
 2. Grass on map: "https://www.flaticon.com/free-icons/bush" title="bush icons">Bush icons created by microstd - Flaticon
 3. Block on map: "https://www.flaticon.com/free-icons/block" title="block icons">Block icons created by Smashicons - Flaticon
 4. Lake on map: "https://www.flaticon.com/free-icons/lake" title="lake icons">Lake icons created by Freepik - Flaticon
+5. Skull images: created on Canva.com
+6. Explanation on Dijkstra's algorithm for 2D path planning: https://www.youtube.com/watch?v=B2mUby28wsw 
+7. Explanation on Dijkstra's algorithm: https://www.youtube.com/watch?v=EFg3u_E6eHU 
+8. TP Pathfinding guide linked on 15-112 course page 

@@ -1,6 +1,7 @@
 from cmu_graphics import *
 import math
 from PIL import Image
+from map import *
 
 class Player:
     def __init__(self, app, x, y, radius, aimLength, aimAngle, aimDirection, charSpeed, 
@@ -212,8 +213,10 @@ def onAppStart(app):
 
     # general 
     app.stepsPerSecond = 30
+    app.onStepCounter = 0
     app.mouseX = 0
     app.mouseY = 0
+    app.paused = True 
 
     # player (user)
     app.radius = app.gridSize/2 
@@ -222,18 +225,18 @@ def onAppStart(app):
 
     # enemy player 
     app.enemy1 = Player(app, app.width/2+200, app.height/2, app.radius, aimLength=300, aimAngle=0.1, aimDirection=0, 
-                        charSpeed=3, healSpeed=0.7, normalDamage=150, superDamage=400, damageNeeded=2000)
-    app.enemy2 = Player(app, app.width/2-200, app.height/2, app.radius, aimLength=300, aimAngle=0.1, aimDirection=0, 
-                        charSpeed=3, healSpeed=0.7, normalDamage=150, superDamage=400, damageNeeded=2000)
+                        charSpeed=2.5, healSpeed=0.7, normalDamage=150, superDamage=400, damageNeeded=2000)
+    # app.enemy2 = Player(app, app.width/2-200, app.height/2, app.radius, aimLength=300, aimAngle=0.1, aimDirection=0, 
+    #                     charSpeed=2, healSpeed=0.7, normalDamage=150, superDamage=400, damageNeeded=2000)
 
-    app.allChars = [app.player, app.enemy1, app.enemy2]
+    app.allChars = [app.player, app.enemy1]
+
 
 def redrawAll(app):
     drawMapBackground(app)
     drawItemInMap(app)
     drawEachPlayer(app, app.player)
     drawEachPlayer(app, app.enemy1)
-    drawEachPlayer(app, app.enemy2)
     app.player.super.drawSuper(app.player)
     if app.player.isSuperMode: 
         mode = 'SUPER'
@@ -285,6 +288,7 @@ def onKeyHold(app, keys):
     app.player.ammoX = app.player.healthX = app.player.playerX - app.player.radius
 
 def onStep(app):
+    app.onStepCounter += 1
     mouseToAim(app)
     for char in app.allChars:
         rechargeHealthAndAmmo(char)
@@ -299,7 +303,10 @@ def onStep(app):
     collisionCheckWithMap(app)
 
     # bots 
-    # enemyMoves(app, app.enemy1)
+    coordsList = whereEnemyMoves(app, app.enemy1)
+    if coordsList != []:
+        enemyMoves(app, app.enemy1, coordsList)
+    
 
 def onMouseMove(app, mouseX, mouseY):
     # aim 
@@ -558,30 +565,44 @@ def bulletOutOfRange(player):
 
 ############################### BOTS
 
-def enemyMoves(app, enemy):
+def whereEnemyMoves(app, enemy):
     # MOVES 
     threshold = enemy.maxHealth // 2
-    enemyRow = enemy.playerY // app.gridSize
-    enemyCol = enemy.playerX // app.gridSize 
-    playerRow = app.player.playerY // app.gridSize 
-    playerCol = app.player.playerX // app.gridSize 
+    enemyRow = math.floor(enemy.playerY / app.gridSize)
+    enemyCol = math.floor(enemy.playerX / app.gridSize)
+    playerRow = math.floor(app.player.playerY / app.gridSize)
+    playerCol = math.floor(app.player.playerX / app.gridSize)
+    # print(enemyRow, enemyCol, playerRow, playerCol)
     if enemy.currHealth > threshold:
-        # move towards player  
-        coordsList = dijkstra(app, enemyRow, enemyCol, playerRow, playerCol)
-        currCoords = (enemyRow, enemyCol)
-        for (nextRow, nextCol) in coordsList: 
-            dx = nextRow - currCoords[0]
-            dy = nextCol - currCoords[1]
-            enemy.playerX += (dx * app.gridSize)
-            enemy.playerY += (dy * app.gridSize)
-            currCoords = (nextRow, nextCol)
+        # move towards player if not there yet
+        if (enemyRow, enemyCol) != (playerRow, playerCol):
+            coordsList = dijkstra(app, enemyRow, enemyCol, playerRow, playerCol)
+        else: 
+            coordsList = []
     else:
         # move towards nearest bush to regenerate 
-        pass
+        coordsList = dijkstra(app, enemyRow, enemyCol, 1, 2)
+    return coordsList
 
     # SHOTS 
     # aim direction towards enemy 
     # if within range, shoot 
+
+def enemyMoves(app, enemy, coordsList):
+    enemyRow = math.floor(enemy.playerY / app.gridSize)
+    enemyCol = math.floor(enemy.playerX / app.gridSize)
+    nextRow, nextCol = coordsList[0][0], coordsList[0][1]
+    if (enemyRow, enemyCol) != (nextRow, nextCol):
+        drow = nextRow - enemyRow 
+        dcol = nextCol - enemyCol 
+        enemy.playerX += (enemy.charSpeed * dcol) 
+        enemy.playerY += (enemy.charSpeed * drow)
+        # update location of ammo and health bars 
+        enemy.ammoY = enemy.playerY - enemy.radius*1.5
+        enemy.healthY = enemy.playerY - enemy.radius*2.2
+        enemy.ammoX = enemy.healthX = enemy.playerX - enemy.radius
+    else: 
+        coordsList.pop(0) # go to next (nextRow, nextCol)
 
 ############################### DIJKSTRA
 
@@ -612,7 +633,7 @@ def dijkstra(app, startCellRow, startCellCol, endCellRow, endCellCol):
     parentDict = dict()
     for coords in unvisited:
         parentDict[coords] = None 
-    
+
     while len(unvisited) > 0:
         currCell = min(unvisited, key=distFrStartDict.get) # might replace with a priority queue?
         if currCell == (endCellRow, endCellCol):

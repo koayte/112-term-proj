@@ -68,13 +68,16 @@ class Player:
         self.healthY = self.playerY - self.radius*2.2
         self.healSpeed = healSpeed
 
+        self.hidden = False 
+        self.opacity = 100
+
         
         
     def drawPlayer(self, app):
         if self.spriteDirection == 'right':
-            drawImage(self.spriteListRight[self.spriteCounterRight], self.playerX, self.playerY, align='center')
+            drawImage(self.spriteListRight[self.spriteCounterRight], self.playerX, self.playerY, align='center', opacity=self.opacity)
         else:
-            drawImage(self.spriteListLeft[self.spriteCounterLeft], self.playerX, self.playerY, align='center')
+            drawImage(self.spriteListLeft[self.spriteCounterLeft], self.playerX, self.playerY, align='center', opacity=self.opacity)
 
 
     def drawRange(self, app):
@@ -97,21 +100,21 @@ class Player:
 
     def drawHealthBar(self, app):
         # max health bar
-        drawRect(self.healthX, self.healthY, self.radius*2, 16, align='left', fill='black') 
+        drawRect(self.healthX, self.healthY, self.radius*2, 16, align='left', fill='black', opacity=self.opacity) 
         # current health bar  DO THIS 
         healthColor = self.healthBarColor()
-        drawRect(self.healthX, self.healthY, self.currHealth*self.healthUnitLen, 16, align='left', fill=healthColor)
+        drawRect(self.healthX, self.healthY, self.currHealth*self.healthUnitLen, 16, align='left', fill=healthColor, opacity=self.opacity)
 
     def drawAmmoBar(self, app):
         # max ammo bar 
-        drawRect(self.ammoX, self.ammoY, self.radius*2, 16, align='left', fill='black')
+        drawRect(self.ammoX, self.ammoY, self.radius*2, 16, align='left', fill='black', opacity=self.opacity)
         # curr ammo bar 
-        drawRect(self.ammoX, self.ammoY, self.currAmmo*self.ammoUnitLen, 16, align='left', fill='orange')
+        drawRect(self.ammoX, self.ammoY, self.currAmmo*self.ammoUnitLen, 16, align='left', fill='orange', opacity=self.opacity)
         # rectangles to show three shots 
         for i in range(self.maxShots):
             oneRectLen = self.maxAmmo/3*self.ammoUnitLen
             leftX = self.ammoX + i*oneRectLen
-            drawRect(leftX, self.ammoY, oneRectLen, 16, align='left', fill=None, border='grey', borderWidth=0.7)
+            drawRect(leftX, self.ammoY, oneRectLen, 16, align='left', fill=None, border='grey', borderWidth=0.7, opacity=self.opacity)
 
 class Bullet:
     def __init__(self, player):
@@ -257,6 +260,12 @@ def redrawAll(app):
 def drawEachPlayer(app, character):
     if character not in app.enemies:
         character.drawRange(app)
+    
+    # if character is hidden in grass
+    if character.hidden == True:
+        character.opacity = 60 if character == app.player else 0
+    else:
+        character.opacity = 100
     character.drawPlayer(app)
     character.drawHealthBar(app)
     character.drawAmmoBar(app)
@@ -395,6 +404,8 @@ def collisionCheckWithMap(app):
         topCellRow, topCellCol = playerCurrRow-1, playerCurrCol
         leftCellRow, leftCellCol = playerCurrRow, playerCurrCol-1
         rightCellRow, rightCellCol = playerCurrRow, playerCurrCol+1
+        
+        # collision check with obstacles 
         if bottomCellRow < app.rows:
             item = app.board[bottomCellRow][bottomCellCol]
             topEdge = bottomCellRow*app.gridSize 
@@ -418,6 +429,13 @@ def collisionCheckWithMap(app):
             leftEdge = rightCellCol*app.gridSize
             if isinstance(item, MapItem) and item.blocked and player.playerX > leftEdge - player.radius:
                 player.playerX = leftEdge - player.radius
+
+        # hide in grass 
+        item = app.board[playerCurrRow][playerCurrCol]
+        if isinstance(item, MapItem) and item.blocked == False: 
+            player.hidden = True 
+        else:
+            player.hidden = False 
 
 ############################### HEALTH 
 def rechargeHealthAndAmmo(player):
@@ -597,7 +615,6 @@ def whereEnemyMoves(app, enemy):
     enemyCol = math.floor(enemy.playerX / app.gridSize)
     playerRow = math.floor(app.player.playerY / app.gridSize)
     playerCol = math.floor(app.player.playerX / app.gridSize)
-    # print(enemyRow, enemyCol, playerRow, playerCol)
     if enemy.currHealth > threshold:
         # move towards player if not there yet
         if (enemyRow, enemyCol) != (playerRow, playerCol):
@@ -673,8 +690,6 @@ def dijkstra(app, startCellRow, startCellCol, endCellRow, endCellCol):
             while parentOfCurr != (startCellRow, startCellCol):
                 parentOfCurr = parentDict[parentOfCurr]
                 path.append(parentOfCurr)
-                print(path)
-                print(parentOfCurr)
             path.pop() # remove (startCellRow, startCellCol)
             return path[::-1]
         unvisited.remove(currCell)

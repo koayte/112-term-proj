@@ -326,6 +326,9 @@ def onStep(app):
     calculateAimDirection(app, app.enemy1, app.enemy1.playerX, app.enemy1.playerY, 
                             app.player.playerX, app.player.playerY)
     if app.onStepCounter % random.randrange(20,90) == 0: # make bots' shot timings arbitrary
+        if app.enemy1.super.activated: 
+            app.enemy1.isSuperMode = random.choice([True, False])
+            print(f'enemy super activated! {app.enemy1.isSuperMode}')
         shoot(app.enemy1)
     
 

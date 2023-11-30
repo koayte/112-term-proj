@@ -218,15 +218,15 @@ def onAppStart(app):
     app.onStepCounter = 0
     app.mouseX = 0
     app.mouseY = 0
-    app.paused = True 
+    app.gameStart = False 
 
     # player (user)
     app.radius = app.gridSize/2 
-    app.player = Player(app, app.width/2, app.height/2, app.radius, aimLength=250, aimAngle=0.1, aimDirection=0, 
+    app.player = Player(app, 7.5*app.gridSize, 8.5*app.gridSize, app.radius, aimLength=250, aimAngle=0.1, aimDirection=0, 
                         charSpeed=3, healSpeed=0.7, normalDamage=150, superDamage=400, damageNeeded=2000)
 
     # enemy player 
-    app.enemy1 = Player(app, app.width/2+200, app.height/2, app.radius, aimLength=250, aimAngle=0.1, aimDirection=0, 
+    app.enemy1 = Player(app, 7.5*app.gridSize, 0.5*app.gridSize, app.radius, aimLength=250, aimAngle=0.1, aimDirection=0, 
                         charSpeed=2.5, healSpeed=0.7, normalDamage=150, superDamage=400, damageNeeded=2000)
     # app.enemy2 = Player(app, app.width/2-200, app.height/2, app.radius, aimLength=300, aimAngle=0.1, aimDirection=0, 
     #                     charSpeed=2, healSpeed=0.7, normalDamage=150, superDamage=400, damageNeeded=2000)
@@ -314,7 +314,7 @@ def onStep(app):
     coordsList = whereEnemyMoves(app, app.enemy1)
     if coordsList != []:
         enemyMoves(app, app.enemy1, coordsList)
-    calculateAimDirection(app.enemy1, app.enemy1.playerX, app.enemy1.playerY, 
+    calculateAimDirection(app, app.enemy1, app.enemy1.playerX, app.enemy1.playerY, 
                             app.player.playerX, app.player.playerY)
     if app.onStepCounter % random.randrange(20,90) == 0: # make bots' shot timings arbitrary
         shoot(app.enemy1)
@@ -431,7 +431,7 @@ def rechargeHealthAndAmmo(player):
 
 ############################### AIM AND SHOOT  
 
-def calculateAimDirection(player, playerX, playerY, targetX, targetY):
+def calculateAimDirection(app, player, playerX, playerY, targetX, targetY):
     # set aim direction (angle)
     straightDist = distance(playerX, playerY, targetX, targetY)
     adjOverHypFraction = (targetX - playerX) / straightDist if straightDist != 0 else 1
@@ -439,6 +439,10 @@ def calculateAimDirection(player, playerX, playerY, targetX, targetY):
         player.aimDirection = -1*math.acos(adjOverHypFraction)
     else: 
         player.aimDirection = math.acos(adjOverHypFraction)
+
+    if player == app.enemy1:
+        # add some randomness to bot's shooting 
+        player.aimDirection += random.uniform(0,0.3)
     
     # straight aim line angle 
     player.aimLineX = player.playerX + player.aimLength*math.cos(player.aimDirection)
@@ -457,7 +461,7 @@ def calculateAimDirection(player, playerX, playerY, targetX, targetY):
 
 
 def mouseToAim(app):
-    calculateAimDirection(app.player, app.player.playerX, app.player.playerY, app.mouseX, app.mouseY)
+    calculateAimDirection(app, app.player, app.player.playerX, app.player.playerY, app.mouseX, app.mouseY)
 
 
 # bullet animation 
@@ -503,10 +507,10 @@ def getBulletHitObstacleIndex(app, player):
         leftCellRow, leftCellCol = bulletCurrRow, bulletCurrCol-1
         rightCellRow, rightCellCol = bulletCurrRow, bulletCurrCol+1
 
-        # check if bullet is spawned inside block/water
-        item = app.board[bulletCurrRow][bulletCurrCol]
-        if isinstance(item, MapItem) and item.blocked:
-            return i 
+        # check if bullet is within screen boundaries 
+        if (bullet.bulletX < 0 or bullet.bulletX > app.width or 
+        bullet.bulletY < 0 or bullet.bulletY > app.height):
+            return i
         
         # check if bullet hits block/water 
         if bottomCellRow < app.rows:
@@ -532,6 +536,12 @@ def getBulletHitObstacleIndex(app, player):
             leftEdge = rightCellCol*app.gridSize
             if isinstance(item, MapItem) and item.blocked and bullet.bulletX > leftEdge - bullet.radius:
                 return i
+        
+        # check if bullet is spawned inside block/water
+        item = app.board[bulletCurrRow][bulletCurrCol]
+        if isinstance(item, MapItem) and item.blocked:
+            return i 
+        
     return None 
 
 def bulletHitsObstacle(app, player):

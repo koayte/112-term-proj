@@ -62,7 +62,7 @@ class Player:
 
         # health bar 
         self.maxHealth = 1500
-        self.currHealth = self.maxHealth
+        self.currHealth = 800
         self.healthUnitLen = self.radius*2/self.maxHealth
         self.healthX = self.playerX - self.radius # left  
         self.healthY = self.playerY - self.radius*2.2
@@ -328,7 +328,6 @@ def onStep(app):
     if app.onStepCounter % random.randrange(20,90) == 0: # make bots' shot timings arbitrary
         if app.enemy1.super.activated: 
             app.enemy1.isSuperMode = random.choice([True, False])
-            print(f'enemy super activated! {app.enemy1.isSuperMode}')
         shoot(app.enemy1)
     
 
@@ -621,12 +620,25 @@ def whereEnemyMoves(app, enemy):
     if enemy.currHealth > threshold:
         # move towards player if not there yet
         if (enemyRow, enemyCol) != (playerRow, playerCol):
-            coordsList = dijkstra(app, enemyRow, enemyCol, playerRow, playerCol)
-        else: 
-            coordsList = []
-    # else:
-    #     # move towards nearest bush to regenerate 
-    # coordsList = dijkstra(app, enemyRow, enemyCol, 2, 2)
+            coordsList = dijkstra(app, enemyRow, enemyCol, playerRow, playerCol)[0]
+        else:
+            coordsList = [] # stop moving 
+    else:
+        # move towards nearest bush to regenerate 
+        coordsList = None # to nearest bush 
+        
+        shortestDistance = 100000
+        for row in range(app.rows):
+            for col in range(app.cols):
+                item = app.board[row][col]
+                if isinstance(item, MapItem) and item.blocked == False: # item is bush
+                    if (enemyRow, enemyCol) != (row, col): # move towards grass if not there yet
+                        currCoordsList, distance = dijkstra(app, enemyRow, enemyCol, row, col)
+                        if distance < shortestDistance: 
+                            coordsList = currCoordsList
+                            shortestDistance = distance 
+                    else:
+                        coordsList = [] # stop moving 
     return coordsList
 
 def enemyMoves(app, enemy, coordsList):
@@ -690,11 +702,16 @@ def dijkstra(app, startCellRow, startCellCol, endCellRow, endCellCol):
             path.append((endCellRow, endCellCol))
             parentOfCurr = parentDict[currCell]
             path.append(parentOfCurr)
+            i = 0 
             while parentOfCurr != (startCellRow, startCellCol):
+                # print(i)
                 parentOfCurr = parentDict[parentOfCurr]
                 path.append(parentOfCurr)
+                i += 1
+                # print(parentOfCurr, (startCellRow, startCellCol))
+                
             path.pop() # remove (startCellRow, startCellCol)
-            return path[::-1]
+            return (path[::-1], distFrStartDict[currCell])
         unvisited.remove(currCell)
         for dx in (-1,0,1):
             for dy in (-1,0,1):

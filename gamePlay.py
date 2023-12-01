@@ -81,7 +81,6 @@ class Player:
         else:
             drawImage(self.spriteListLeft[self.spriteCounterLeft], self.playerX, self.playerY, align='center', opacity=self.opacity)
 
-
     def drawRange(self, app):
         drawPolygon(*self.rangeCoords, fill=rgb(240,209,106), opacity=80)
 
@@ -201,6 +200,30 @@ class MapItem:
         topLeftX, topLeftY = app.gridSize*y, app.gridSize*x
         drawImage(self.image, topLeftX, topLeftY, align='left-top')
 
+class Button:
+    def __init__(self, cx, cy, text, width, height, size):
+        self.cx = cx 
+        self.cy = cy
+        self.text = text
+        self.width = width
+        self.height = height
+        self.size = size
+        self.clicked = False 
+    
+    def drawButton(self):
+        drawRect(self.cx, self.cy, self.width, self.height, align='center', fill=None, border='white')
+        drawLabel(self.text, self.cx, self.cy, align='center', size=self.size, font='orbitron', fill='white')
+
+    def buttonClick(self, mouseX, mouseY):
+        rectLeft = self.cx - self.width / 2
+        rectRight = self.cx + self.width / 2
+        rectTop = self.cy - self.height / 2
+        rectBot = self.cy + self.height / 2
+        if rectLeft <= mouseX <= rectRight and rectTop <= mouseY <= rectBot:
+            self.clicked = True 
+            print(self.clicked)
+        
+
 ############################### EVENTS 
 
 def newRound(app):
@@ -240,7 +263,9 @@ def newRound(app):
     app.enemies = [app.enemy1]
 
     app.roundLoser = None 
+    app.newGameButton = Button(app.width/2, app.height/2+80, 'NEXT ROUND', width=400, height=60, size=30)
     # app.roundWinner = None 
+    # app.newGameButton.clicked = False 
 
 def onAppStart(app):
     newRound(app)
@@ -249,6 +274,7 @@ def onAppStart(app):
     app.roundLosers = []
     app.playerRoundOutcomes = [None, None, None]
     app.roundNum = 0
+    app.matchWinner = None 
     
 
 def redrawAll(app):
@@ -275,11 +301,22 @@ def redrawAll(app):
     # game over 
     if app.gameOver: 
         drawRect(0, 0, app.width, app.height, fill='black', opacity=80)
-        if app.roundLoser == app.player:
-            label = 'LOST'
-        else:
-            label = 'WON'
-        drawLabel(f'ROUND {app.roundNum} {label}', app.width/2, app.height/2, fill='white', size=50, font='orbitron', bold=True, align='center')
+        if app.roundNum < 3: 
+            if app.roundLoser == app.player:
+                label = 'LOST'
+            else:
+                label = 'WON'
+            drawLabel(f'ROUND {app.roundNum} {label}', app.width/2, app.height/2, 
+                    fill='white', size=50, font='orbitron', bold=True, align='center')
+            app.newGameButton.drawButton()
+        elif app.roundNum == 3: 
+            if app.matchWinner == app.player: 
+                label = 'WON'
+            else:
+                label = 'LOST'
+            drawLabel(f'MATCH {label}', app.width/2, app.height/2,
+                      fill='white', size=50, font='orbitron', bold=True, align='center')
+            
         
 def drawEachPlayer(app, character):
     if character not in app.enemies:
@@ -302,7 +339,14 @@ def onKeyPress(app, key):
         app.player.isSuperMode = not app.player.isSuperMode
 
 def onMousePress(app, mouseX, mouseY):
-    shoot(app.player)
+    if app.gameOver == False:
+        shoot(app.player)
+
+    if app.gameOver and app.roundNum < 3: 
+        app.newGameButton.buttonClick(mouseX, mouseY)
+        if app.newGameButton.clicked: 
+            print(app.newGameButton.clicked)
+            newRound(app)
         
 def onKeyHold(app, keys):
     # navigation
@@ -357,8 +401,11 @@ def onStep(app):
             shoot(app.enemy1)
         
         # win/lose condition 
-        whoLoses(app)
+        whoLosesRound(app)
     
+    else:
+        whoWinsMatch(app)
+
 
 def onMouseMove(app, mouseX, mouseY):
     # aim 
@@ -490,9 +537,9 @@ def calculateAimDirection(app, player, playerX, playerY, targetX, targetY):
     else: 
         player.aimDirection = math.acos(adjOverHypFraction)
 
-    if player == app.enemy1:
-        # add some randomness to bot's shooting 
-        player.aimDirection += random.uniform(0,0.3)
+    # if player == app.enemy1:
+    #     # add some randomness to bot's shooting 
+    #     player.aimDirection += random.uniform(0,0.3)
     
     # straight aim line angle 
     player.aimLineX = player.playerX + player.aimLength*math.cos(player.aimDirection)
@@ -788,7 +835,7 @@ def initializeDistDict(unvisited, startCellRow, startCellCol):
 
 ############################### WIN / LOSE / SCORING 
 
-def whoLoses(app):
+def whoLosesRound(app):
     for char in app.allChars: 
         if char.currHealth <= 0.1: 
             app.roundLoser = char 
@@ -810,8 +857,15 @@ def drawRounds(app):
         startX, startY = app.width / 2 - 50, 50
         drawCircle(startX + 50*i, startY, radius, fill=color)
 
+def whoWinsMatch(app):
+    if app.roundNum == 3: 
+        numWins = app.playerRoundOutcomes.count(1)
+        if numWins >= 2: 
+            app.matchWinner = app.player 
+        else:
+            app.matchWinner = app.enemy1 
+
 def main():
     runApp()
     
-
 main()

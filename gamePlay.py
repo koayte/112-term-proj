@@ -1,7 +1,6 @@
 from cmu_graphics import *
 import math
 from PIL import Image
-from map import *
 import random
 
 class Player:
@@ -71,6 +70,9 @@ class Player:
 
         self.hidden = False 
         self.opacity = 100
+
+        self.hiding = False 
+        self.coordsList = []
 
     def __repr__(self):
         return f'{self.name}'
@@ -146,7 +148,7 @@ class Bullet:
         self.isNormalOrSuper = "normal"
     
     def drawBullet(self, app):
-        color = rgb(248,251,46) if self.playerOrigin == app.player else rgb(255,14,14)
+        color = 'cyan' if self.playerOrigin == app.player else rgb(255,14,14)
         drawCircle(self.bulletX, self.bulletY, self.radius, fill=color)
 
 class Super:
@@ -221,7 +223,6 @@ class Button:
         rectBot = self.cy + self.height / 2
         if rectLeft <= mouseX <= rectRight and rectTop <= mouseY <= rectBot:
             self.clicked = True 
-            print(self.clicked)
         
 
 ############################### EVENTS 
@@ -345,7 +346,6 @@ def onMousePress(app, mouseX, mouseY):
     if app.gameOver and app.roundNum < 3: 
         app.newGameButton.buttonClick(mouseX, mouseY)
         if app.newGameButton.clicked: 
-            print(app.newGameButton.clicked)
             newRound(app)
         
 def onKeyHold(app, keys):
@@ -390,9 +390,17 @@ def onStep(app):
         collisionCheckWithMap(app)
 
         # bots 
-        coordsList = whereEnemyMoves(app, app.enemy1)
-        if coordsList != []:
-            enemyMoves(app, app.enemy1, coordsList)
+        threshold = app.enemy1.maxHealth // 2
+        if app.enemy1.currHealth > threshold:
+            enemyMovesTowardsPlayer(app, app.enemy1)
+        else:
+            app.enemy1.hiding = True
+            if app.onStepCounter % 60 == 0:
+                enemyMovesTowardsBush(app, app.enemy1)
+                # print(app.enemy1.hiding, app.enemy1.coordsList)
+            if app.enemy1.coordsList != []:
+                enemyMoves(app, app.enemy1, app.enemy1.coordsList)
+
         calculateAimDirection(app, app.enemy1, app.enemy1.playerX, app.enemy1.playerY, 
                                 app.player.playerX, app.player.playerY)
         if app.onStepCounter % random.randrange(20,90) == 0: # make bots' shot timings arbitrary
@@ -685,6 +693,41 @@ def bulletOutOfRange(player):
         player.bullets.pop(i)
 
 ############################### BOTS
+
+def enemyMovesTowardsPlayer(app, enemy):
+    # get coordsList
+    enemyRow = math.floor(enemy.playerY / app.gridSize)
+    enemyCol = math.floor(enemy.playerX / app.gridSize)
+    playerRow = math.floor(app.player.playerY / app.gridSize)
+    playerCol = math.floor(app.player.playerX / app.gridSize)
+    if (enemyRow, enemyCol) != (playerRow, playerCol):
+        coordsList = dijkstra(app, enemyRow, enemyCol, playerRow, playerCol)[0]
+    else:
+        coordsList = []
+    enemy.coordsList = coordsList 
+    # move 
+    if coordsList != []:
+        enemyMoves(app, enemy, coordsList)
+
+def enemyMovesTowardsBush(app, enemy):
+    enemyRow = math.floor(enemy.playerY / app.gridSize)
+    enemyCol = math.floor(enemy.playerX / app.gridSize)
+    coordsList = [] # to nearest bush 
+    shortestDistance = 100000
+    for row in range(app.rows):
+        for col in range(app.cols):
+            item = app.board[row][col]
+            if isinstance(item, MapItem) and item.blocked == False: # item is bush
+                if (enemyRow, enemyCol) != (row, col): # move towards grass if not there yet
+                    currCoordsList, distance = dijkstra(app, enemyRow, enemyCol, row, col)
+                    if distance < shortestDistance: 
+                        coordsList = currCoordsList
+                        shortestDistance = distance 
+                else:
+                    coordsList = [] # stop moving 
+    enemy.coordsList = coordsList 
+    # if coordsList != []:
+    #     enemyMoves(app, enemy, coordsList)
 
 def whereEnemyMoves(app, enemy):
     # MOVES 

@@ -5,9 +5,10 @@ from map import *
 import random
 
 class Player:
-    def __init__(self, app, x, y, radius, aimLength, aimAngle, aimDirection, charSpeed, 
+    def __init__(self, name, app, x, y, radius, aimLength, aimAngle, aimDirection, charSpeed, 
                  healSpeed, normalDamage, superDamage, damageNeeded):
         # gif 
+        self.name = name
         self.charGif = Image.open('images/jessie.gif')
         self.spriteListRight = []
         self.spriteDirection = 'right'
@@ -71,7 +72,8 @@ class Player:
         self.hidden = False 
         self.opacity = 100
 
-        
+    def __repr__(self):
+        return f'{self.name}'
         
     def drawPlayer(self, app):
         if self.spriteDirection == 'right':
@@ -201,7 +203,7 @@ class MapItem:
 
 ############################### EVENTS 
 
-def onAppStart(app):
+def newRound(app):
     # map 
     app.width = 1280
     app.height = 720 
@@ -221,15 +223,15 @@ def onAppStart(app):
     app.onStepCounter = 0
     app.mouseX = 0
     app.mouseY = 0
-    app.gameStart = False 
+    app.gameOver = False 
 
     # player (user)
     app.radius = app.gridSize/2 
-    app.player = Player(app, 7.5*app.gridSize, 8.5*app.gridSize, app.radius, aimLength=250, aimAngle=0.1, aimDirection=0, 
+    app.player = Player('player', app, 7.5*app.gridSize, 8.5*app.gridSize, app.radius, aimLength=250, aimAngle=0.1, aimDirection=0, 
                         charSpeed=3, healSpeed=0.7, normalDamage=150, superDamage=400, damageNeeded=2000)
 
     # enemy player 
-    app.enemy1 = Player(app, 7.5*app.gridSize, 0.5*app.gridSize, app.radius, aimLength=250, aimAngle=0.1, aimDirection=0, 
+    app.enemy1 = Player('enemy1', app, 7.5*app.gridSize, 0.5*app.gridSize, app.radius, aimLength=250, aimAngle=0.1, aimDirection=0, 
                         charSpeed=2.5, healSpeed=0.7, normalDamage=150, superDamage=400, damageNeeded=2000)
     # app.enemy2 = Player(app, app.width/2-200, app.height/2, app.radius, aimLength=300, aimAngle=0.1, aimDirection=0, 
     #                     charSpeed=2, healSpeed=0.7, normalDamage=150, superDamage=400, damageNeeded=2000)
@@ -237,6 +239,17 @@ def onAppStart(app):
     app.allChars = [app.player, app.enemy1]
     app.enemies = [app.enemy1]
 
+    app.roundLoser = None 
+    # app.roundWinner = None 
+
+def onAppStart(app):
+    newRound(app)
+
+    # app.roundWinners = []
+    app.roundLosers = []
+    app.playerRoundOutcomes = [None, None, None]
+    app.roundNum = 0
+    
 
 def redrawAll(app):
     drawMapBackground(app)
@@ -255,8 +268,19 @@ def redrawAll(app):
         for j in range(len(char.bullets)):
             bullet = char.bullets[j]
             bullet.drawBullet(app)
-    
 
+    # scores 
+    drawRounds(app)
+
+    # game over 
+    if app.gameOver: 
+        drawRect(0, 0, app.width, app.height, fill='black', opacity=80)
+        if app.roundLoser == app.player:
+            label = 'LOST'
+        else:
+            label = 'WON'
+        drawLabel(f'ROUND {app.roundNum} {label}', app.width/2, app.height/2, fill='white', size=50, font='orbitron', bold=True, align='center')
+        
 def drawEachPlayer(app, character):
     if character not in app.enemies:
         character.drawRange(app)
@@ -282,53 +306,58 @@ def onMousePress(app, mouseX, mouseY):
         
 def onKeyHold(app, keys):
     # navigation
-    if 'w' in keys and 's' not in keys:
-        app.player.playerY -= app.player.charSpeed
-    elif 'w' not in keys and 's' in keys:
-        app.player.playerY += app.player.charSpeed
-    if 'a' in keys and 'd' not in keys:
-        app.player.playerX -= app.player.charSpeed 
-        app.player.spriteDirection = 'left'
-    elif 'a' not in keys and 'd' in keys:
-        app.player.playerX += app.player.charSpeed 
-        app.player.spriteDirection = 'right'
+    if app.gameOver == False:
+        if 'w' in keys and 's' not in keys:
+            app.player.playerY -= app.player.charSpeed
+        elif 'w' not in keys and 's' in keys:
+            app.player.playerY += app.player.charSpeed
+        if 'a' in keys and 'd' not in keys:
+            app.player.playerX -= app.player.charSpeed 
+            app.player.spriteDirection = 'left'
+        elif 'a' not in keys and 'd' in keys:
+            app.player.playerX += app.player.charSpeed 
+            app.player.spriteDirection = 'right'
 
-    # sprite walking animation
-    if app.player.spriteDirection == 'right':
-        app.player.spriteCounterRight = (app.player.spriteCounterRight + 1) % len(app.player.spriteListRight)
-    else:
-        app.player.spriteCounterLeft = (app.player.spriteCounterLeft + 1) % len(app.player.spriteListLeft)
-    
-    # update location of ammo and health bars 
-    app.player.ammoY = app.player.playerY - app.player.radius*1.5
-    app.player.healthY = app.player.playerY - app.player.radius*2.2
-    app.player.ammoX = app.player.healthX = app.player.playerX - app.player.radius
+        # sprite walking animation
+        if app.player.spriteDirection == 'right':
+            app.player.spriteCounterRight = (app.player.spriteCounterRight + 1) % len(app.player.spriteListRight)
+        else:
+            app.player.spriteCounterLeft = (app.player.spriteCounterLeft + 1) % len(app.player.spriteListLeft)
+        
+        # update location of ammo and health bars 
+        app.player.ammoY = app.player.playerY - app.player.radius*1.5
+        app.player.healthY = app.player.playerY - app.player.radius*2.2
+        app.player.ammoX = app.player.healthX = app.player.playerX - app.player.radius
 
 def onStep(app):
-    app.onStepCounter += 1
-    mouseToAim(app)
-    for char in app.allChars:
-        rechargeHealthAndAmmo(char)
-        bulletsMove(char)
-        bulletOutOfRange(char)
-        bulletHitsObstacle(app, char)
+    if app.gameOver == False:
+        app.onStepCounter += 1
+        mouseToAim(app)
+        for char in app.allChars:
+            rechargeHealthAndAmmo(app, char)
+            bulletsMove(char)
+            bulletOutOfRange(char)
+            bulletHitsObstacle(app, char)
+        
+        bulletsHit(app.player, app.enemy1)
+        bulletsHit(app.enemy1, app.player)
     
-    bulletsHit(app.player, app.enemy1)
-    bulletsHit(app.enemy1, app.player)
- 
-    boundaryCorrection(app)
-    collisionCheckWithMap(app)
+        boundaryCorrection(app)
+        collisionCheckWithMap(app)
 
-    # bots 
-    coordsList = whereEnemyMoves(app, app.enemy1)
-    if coordsList != []:
-        enemyMoves(app, app.enemy1, coordsList)
-    calculateAimDirection(app, app.enemy1, app.enemy1.playerX, app.enemy1.playerY, 
-                            app.player.playerX, app.player.playerY)
-    if app.onStepCounter % random.randrange(20,90) == 0: # make bots' shot timings arbitrary
-        if app.enemy1.super.activated: 
-            app.enemy1.isSuperMode = random.choice([True, False])
-        shoot(app.enemy1)
+        # bots 
+        coordsList = whereEnemyMoves(app, app.enemy1)
+        if coordsList != []:
+            enemyMoves(app, app.enemy1, coordsList)
+        calculateAimDirection(app, app.enemy1, app.enemy1.playerX, app.enemy1.playerY, 
+                                app.player.playerX, app.player.playerY)
+        if app.onStepCounter % random.randrange(20,90) == 0: # make bots' shot timings arbitrary
+            if app.enemy1.super.activated: 
+                app.enemy1.isSuperMode = random.choice([True, False])
+            shoot(app.enemy1)
+        
+        # win/lose condition 
+        whoLoses(app)
     
 
 def onMouseMove(app, mouseX, mouseY):
@@ -440,14 +469,15 @@ def collisionCheckWithMap(app):
             player.hidden = False 
 
 ############################### HEALTH 
-def rechargeHealthAndAmmo(player):
-    if player.currHealth < player.maxHealth: 
-        player.currHealth += player.healSpeed
-        if player.currHealth > player.maxHealth:
-            player.currHealth = player.maxHealth
-    
-    if player.currAmmo < player.maxAmmo:
-        player.currAmmo += 6
+def rechargeHealthAndAmmo(app, player):
+    if app.gameOver == False:
+        if player.currHealth < player.maxHealth: 
+            player.currHealth += player.healSpeed
+            if player.currHealth > player.maxHealth:
+                player.currHealth = player.maxHealth
+        
+        if player.currAmmo < player.maxAmmo:
+            player.currAmmo += 6
 
 ############################### AIM AND SHOOT  
 
@@ -482,7 +512,6 @@ def calculateAimDirection(app, player, playerX, playerY, targetX, targetY):
 
 def mouseToAim(app):
     calculateAimDirection(app, app.player, app.player.playerX, app.player.playerY, app.mouseX, app.mouseY)
-
 
 # bullet animation 
 def bulletsMove(player):
@@ -704,12 +733,9 @@ def dijkstra(app, startCellRow, startCellCol, endCellRow, endCellCol):
             path.append(parentOfCurr)
             i = 0 
             while parentOfCurr != (startCellRow, startCellCol):
-                # print(i)
                 parentOfCurr = parentDict[parentOfCurr]
                 path.append(parentOfCurr)
                 i += 1
-                # print(parentOfCurr, (startCellRow, startCellCol))
-                
             path.pop() # remove (startCellRow, startCellCol)
             return (path[::-1], distFrStartDict[currCell])
         unvisited.remove(currCell)
@@ -759,6 +785,30 @@ def initializeDistDict(unvisited, startCellRow, startCellCol):
         distFrStartDict[coords] = 10000 # some large enough number 
     distFrStartDict[(startCellRow, startCellCol)] = 0
     return distFrStartDict
+
+############################### WIN / LOSE / SCORING 
+
+def whoLoses(app):
+    for char in app.allChars: 
+        if char.currHealth <= 0.1: 
+            app.roundLoser = char 
+            app.playerRoundOutcomes[app.roundNum] = 0 if app.roundLoser == app.player else 1
+            app.roundNum += 1
+            app.gameOver = True 
+            
+
+def drawRounds(app):
+    for i in range(len(app.playerRoundOutcomes)):
+        outcome = app.playerRoundOutcomes[i]
+        if outcome == 1: 
+            color = 'cyan'
+        elif outcome == 0: 
+            color = 'red'
+        elif outcome == None: 
+            color = 'white'
+        radius = 20
+        startX, startY = app.width / 2 - 50, 50
+        drawCircle(startX + 50*i, startY, radius, fill=color)
 
 def main():
     runApp()

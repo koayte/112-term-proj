@@ -4,8 +4,8 @@ import math
 import random
 
 class Player:
-    def __init__(self, name, app, x, y, radius, aimLength, aimAngle, aimDirection, charSpeed, 
-                 healSpeed, normalDamage, superDamage, damageNeeded):
+    def __init__(self, name, app, x, y, radius, aimLength, aimAngle, aimDirection, 
+                 charSpeed, healSpeed, normalDamage, superDamage, damageNeeded):
         # gif 
         self.name = name
         self.charGif = Image.open('images/jessie.gif')

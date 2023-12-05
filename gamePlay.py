@@ -115,7 +115,7 @@ def onKeyPress(app, key):
     if key == 'f' and app.player.super.activated == True:
         app.player.isSuperMode = not app.player.isSuperMode
     if key == 'm':
-        app.player.totalDamage = app.player.damageNeeded 
+        app.player.totalDamage = app.player.damageNeeded + 0.1
 
 def onMousePress(app, mouseX, mouseY):
     if app.gameOver == False:
@@ -172,6 +172,7 @@ def onStep(app):
         app.onStepCounter += 1
         if app.countdown == 0:
             mouseToAim(app)
+            superActivated(app.player)
             for char in app.allChars:
                 rechargeHealthAndAmmo(app, char)
                 bulletsMove(char)
@@ -200,7 +201,10 @@ def onStep(app):
             if app.onStepCounter % random.randrange(20,90) == 0: # make bots' shot timings arbitrary
                 if app.enemy1.super.activated: 
                     app.enemy1.isSuperMode = random.choice([True, False])
-                shoot(app.enemy1)
+                # shoot only if player is within range of enemy 
+                distToPlayer = distance(app.enemy1.playerX, app.enemy1.playerY, app.player.playerX, app.player.playerY)
+                if distToPlayer <= app.enemy1.maxAimLength:
+                    shoot(app.enemy1)
             
             # win/lose condition 
             whoLosesRound(app)
@@ -267,8 +271,8 @@ def mouseToAim(app):
 def bulletsMove(player):
     for i in range(len(player.bullets)):
         bullet = player.bullets[i]
-        dx = 4*math.cos(bullet.bulletDirection)
-        dy = 4*math.sin(bullet.bulletDirection)
+        dx = 7*math.cos(bullet.bulletDirection)
+        dy = 7*math.sin(bullet.bulletDirection)
         bullet.bulletX += dx
         bullet.bulletY -= dy
 

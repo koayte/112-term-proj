@@ -38,16 +38,15 @@ def newRound(app):
     # enemy player 
     app.enemy1 = Player('enemy1', app, 7.5*app.gridSize, 0.5*app.gridSize, app.radius, aimLength=250, aimAngle=0.1, aimDirection=0, 
                         charSpeed=2.5, healSpeed=0.7, normalDamage=150, superDamage=400, damageNeeded=2000)
-    # app.enemy2 = Player(app, app.width/2-200, app.height/2, app.radius, aimLength=300, aimAngle=0.1, aimDirection=0, 
-    #                     charSpeed=2, healSpeed=0.7, normalDamage=150, superDamage=400, damageNeeded=2000)
-
+    
     app.allChars = [app.player, app.enemy1]
     app.enemies = [app.enemy1]
 
     app.roundLoser = None 
     app.newRoundButton = Button(app.width/2, app.height/2, 'NEXT ROUND', width=400, height=60, size=30)
-    # app.roundWinner = None 
-    # app.newGameButton.clicked = False 
+    
+    # countdown screen 
+    app.countdown = 3
 
 def newMatch(app):
     newRound(app)
@@ -73,7 +72,8 @@ def redrawAll(app):
             mode = 'SUPER'
         else:
             mode = 'NORMAL'
-        drawLabel(f'{mode}', app.width-150, app.height-80, size=16, font='orbitron')
+        drawRect(app.width-150, app.height-70, 100, 30, fill=rgb(240,209,106), align='center')
+        drawLabel(f'{mode}', app.width-150, app.height-70, size=20, font='orbitron')
 
         for i in range(len(app.allChars)):
             char = app.allChars[i]
@@ -85,9 +85,11 @@ def redrawAll(app):
         drawRounds(app)
 
     # match start 
-    
     if app.isNewMatch and app.roundNum == 0:
         drawStartScreen(app)
+    
+    if (app.startMatchButton.clicked or app.newRoundButton.clicked) and app.countdown > 0:
+        drawCountdownScreen(app)
 
     # game over 
     if app.gameOver:  
@@ -163,42 +165,48 @@ def onKeyHold(app, keys):
         app.player.ammoX = app.player.healthX = app.player.playerX - app.player.radius
 
 def onStep(app):
+    # during gamePlay
     if app.gameOver == False and app.isNewMatch == False:
         app.onStepCounter += 1
-        mouseToAim(app)
-        for char in app.allChars:
-            rechargeHealthAndAmmo(app, char)
-            bulletsMove(char)
-            bulletOutOfRange(char)
-            bulletHitsObstacle(app, char)
+        if app.countdown == 0:
+            mouseToAim(app)
+            for char in app.allChars:
+                rechargeHealthAndAmmo(app, char)
+                bulletsMove(char)
+                bulletOutOfRange(char)
+                bulletHitsObstacle(app, char)
+            
+            bulletsHit(app.player, app.enemy1)
+            bulletsHit(app.enemy1, app.player)
         
-        bulletsHit(app.player, app.enemy1)
-        bulletsHit(app.enemy1, app.player)
-    
-        boundaryCorrection(app)
-        collisionCheckWithMap(app)
+            boundaryCorrection(app)
+            collisionCheckWithMap(app)
 
-        # bots 
-        threshold = app.enemy1.maxHealth // 2
-        if app.enemy1.currHealth > threshold:
-            enemyMovesTowardsPlayer(app, app.enemy1)
-        else:
-            app.enemy1.hiding = True
-            if app.onStepCounter % 60 == 0:
-                enemyMovesTowardsBush(app, app.enemy1)
-            if app.enemy1.coordsList != []:
-                enemyMoves(app, app.enemy1, app.enemy1.coordsList)
+            # bots 
+            threshold = app.enemy1.maxHealth // 2
+            if app.enemy1.currHealth > threshold:
+                enemyMovesTowardsPlayer(app, app.enemy1)
+            else:
+                app.enemy1.hiding = True
+                if app.onStepCounter % 60 == 0:
+                    enemyMovesTowardsBush(app, app.enemy1)
+                if app.enemy1.coordsList != []:
+                    enemyMoves(app, app.enemy1, app.enemy1.coordsList)
 
-        calculateAimDirection(app, app.enemy1, app.enemy1.playerX, app.enemy1.playerY, 
-                                app.player.playerX, app.player.playerY)
-        if app.onStepCounter % random.randrange(20,90) == 0: # make bots' shot timings arbitrary
-            if app.enemy1.super.activated: 
-                app.enemy1.isSuperMode = random.choice([True, False])
-            shoot(app.enemy1)
+            calculateAimDirection(app, app.enemy1, app.enemy1.playerX, app.enemy1.playerY, 
+                                    app.player.playerX, app.player.playerY)
+            if app.onStepCounter % random.randrange(20,90) == 0: # make bots' shot timings arbitrary
+                if app.enemy1.super.activated: 
+                    app.enemy1.isSuperMode = random.choice([True, False])
+                shoot(app.enemy1)
+            
+            # win/lose condition 
+            whoLosesRound(app)
         
-        # win/lose condition 
-        whoLosesRound(app)
-    
+        elif app.countdown >= 1:
+            if app.onStepCounter % 30 == 0: # every second
+                app.countdown -= 1
+
     else:
         whoWinsMatch(app)
 
@@ -438,6 +446,11 @@ def drawStartScreen(app):
     drawLabel('WELCOME TO BRAWL BARS!', app.width/2, app.height/2-80, fill='white', align='center', size=50, 
                 bold=True, font='orbitron')
     app.startMatchButton.drawButton()
+
+def drawCountdownScreen(app):
+    drawRect(0, 0, app.width, app.height, fill='black', opacity=80)
+    drawLabel(f'{app.countdown}', app.width/2, app.height/2, fill='white', align='center', 
+              size=50, bold=True, font='orbitron')
         
 def main():
     runApp()

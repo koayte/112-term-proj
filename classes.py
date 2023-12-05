@@ -62,7 +62,7 @@ class Player:
 
         # health bar 
         self.maxHealth = 1500
-        self.currHealth = 800
+        self.currHealth = self.maxHealth
         self.healthUnitLen = self.radius*2/self.maxHealth
         self.healthX = self.playerX - self.radius # left  
         self.healthY = self.playerY - self.radius*2.2

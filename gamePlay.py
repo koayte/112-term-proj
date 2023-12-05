@@ -114,6 +114,8 @@ def onKeyPress(app, key):
         shoot(app.player)
     if key == 'f' and app.player.super.activated == True:
         app.player.isSuperMode = not app.player.isSuperMode
+    if key == 'm':
+        app.player.totalDamage = app.player.damageNeeded 
 
 def onMousePress(app, mouseX, mouseY):
     if app.gameOver == False:

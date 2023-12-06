@@ -44,6 +44,7 @@ def newRound(app):
 
     app.roundLoser = None 
     app.newRoundButton = Button(app.width/2, app.height/2, 'NEXT ROUND', width=400, height=60, size=30)
+    app.enemyPaused = False 
     
     # countdown screen 
     app.countdown = 3
@@ -114,8 +115,13 @@ def onKeyPress(app, key):
         shoot(app.player)
     if key == 'f' and app.player.super.activated == True:
         app.player.isSuperMode = not app.player.isSuperMode
-    if key == 'm':
+    # cheat codes 
+    if key == 'm': # activate player's Super 
         app.player.totalDamage = app.player.damageNeeded + 0.1
+    if key == 'n': # activate enemy's Super 
+        app.enemy1.totalDamage = app.enemy1.damageNeeded + 0.1 
+    if key == 'p':
+        app.enemyPaused = not app.enemyPaused 
 
 def onMousePress(app, mouseX, mouseY):
     if app.gameOver == False:
@@ -173,6 +179,7 @@ def onStep(app):
         if app.countdown == 0:
             mouseToAim(app)
             superActivated(app.player)
+            superActivated(app.enemy1)
             for char in app.allChars:
                 rechargeHealthAndAmmo(app, char)
                 bulletsMove(char)
@@ -186,25 +193,26 @@ def onStep(app):
             collisionCheckWithMap(app)
 
             # bots 
-            threshold = app.enemy1.maxHealth // 2
-            if app.enemy1.currHealth > threshold:
-                enemyMovesTowardsPlayer(app, app.enemy1)
-            else:
-                app.enemy1.hiding = True
-                if app.onStepCounter % 60 == 0:
-                    enemyMovesTowardsBush(app, app.enemy1)
-                if app.enemy1.coordsList != []:
-                    enemyMoves(app, app.enemy1, app.enemy1.coordsList)
+            if app.enemyPaused == False:
+                threshold = app.enemy1.maxHealth // 2
+                if app.enemy1.currHealth > threshold:
+                    enemyMovesTowardsPlayer(app, app.enemy1)
+                else:
+                    app.enemy1.hiding = True
+                    if app.onStepCounter % 60 == 0:
+                        enemyMovesTowardsBush(app, app.enemy1)
+                    if app.enemy1.coordsList != []:
+                        enemyMoves(app, app.enemy1, app.enemy1.coordsList)
 
-            calculateAimDirection(app, app.enemy1, app.enemy1.playerX, app.enemy1.playerY, 
-                                    app.player.playerX, app.player.playerY)
-            if app.onStepCounter % random.randrange(20,90) == 0: # make bots' shot timings arbitrary
-                if app.enemy1.super.activated: 
-                    app.enemy1.isSuperMode = random.choice([True, False])
-                # shoot only if player is within range of enemy 
-                distToPlayer = distance(app.enemy1.playerX, app.enemy1.playerY, app.player.playerX, app.player.playerY)
-                if distToPlayer <= app.enemy1.maxAimLength:
-                    shoot(app.enemy1)
+                calculateAimDirection(app, app.enemy1, app.enemy1.playerX, app.enemy1.playerY, 
+                                        app.player.playerX, app.player.playerY)
+                if app.onStepCounter % random.randrange(20,90) == 0: # make bots' shot timings arbitrary
+                    if app.enemy1.super.activated: 
+                        app.enemy1.isSuperMode = random.choice([True, False])
+                    # shoot only if player is within range of enemy 
+                    distToPlayer = distance(app.enemy1.playerX, app.enemy1.playerY, app.player.playerX, app.player.playerY)
+                    if distToPlayer <= app.enemy1.maxAimLength:
+                        shoot(app.enemy1)
             
             # win/lose condition 
             whoLosesRound(app)
